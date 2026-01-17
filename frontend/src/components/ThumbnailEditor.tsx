@@ -95,10 +95,6 @@ const FONT_OPTIONS = [
 const FONT_CATEGORIES = [
     { id: 'all', label: '전체' },
     { id: 'bookmarked', label: '즐겨찾기', icon: Star },
-    { id: 'gothic', label: '고딕' },
-    { id: 'serif', label: '명조' },
-    { id: 'handwriting', label: '손글씨' },
-    { id: 'display', label: '타이틀' },
 ];
 
 // 로컬 스토리지 키
@@ -384,13 +380,14 @@ export default function ThumbnailEditor({
     const selectedBoxData = textBoxes.find(b => b.id === selectedBox);
 
     return (
-        <div className="flex gap-6">
-            {/* 왼쪽: 캔버스 + 액션 버튼 (중앙 정렬) */}
-            <div className="w-1/2 flex flex-col justify-center space-y-4">
-                {/* 캔버스 영역 */}
+        <div className="flex gap-6 items-start">
+            {/* 왼쪽: 캔버스 + 액션 버튼 - 960x540px 고정 크기 */}
+            <div className="flex flex-col space-y-4">
+                {/* 캔버스 영역 - 960x540px 고정 (1920x1080의 50%) */}
                 <div
                     ref={canvasRef}
-                    className="relative w-full aspect-video bg-black rounded-xl overflow-hidden cursor-crosshair select-none"
+                    className="relative bg-black rounded-xl overflow-hidden cursor-crosshair select-none"
+                    style={{ width: '960px', height: '540px' }}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
@@ -399,7 +396,7 @@ export default function ThumbnailEditor({
                     <img
                         src={backgroundImageUrl}
                         alt="Background"
-                        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                        className="absolute inset-0 w-full h-full object-contain pointer-events-none bg-black"
                         draggable={false}
                     />
 
@@ -423,9 +420,9 @@ export default function ThumbnailEditor({
                                 color: box.color,
                                 textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
                                 whiteSpace: 'nowrap',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                backgroundColor: selectedBox === box.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                padding: selectedBox === box.id ? '4px 8px' : '0',
+                                borderRadius: selectedBox === box.id ? '4px' : '0',
+                                backgroundColor: selectedBox === box.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                             }}
                             onMouseDown={(e) => handleMouseDown(e, box.id)}
                         >
@@ -505,90 +502,39 @@ export default function ThumbnailEditor({
                     )}
                 </div>
 
-                {/* 영상 인트로 설정 */}
-                <div className="mt-4 p-4 bg-card border border-border rounded-xl space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <PlayCircle className="w-4 h-4 text-primary" />
-                        영상 시작 인트로 설정
-                    </div>
-
-                    {/* 썸네일을 인트로로 사용 */}
-                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                        <input
-                            type="checkbox"
-                            checked={localIntroSettings.useAsIntro}
-                            onChange={(e) => updateIntroSettings({
-                                useAsIntro: e.target.checked,
-                                separateIntro: e.target.checked ? false : localIntroSettings.separateIntro
-                            })}
-                            className="w-4 h-4 mt-0.5 rounded accent-primary"
-                        />
-                        <div className="flex-1">
-                            <span className="text-sm font-medium text-foreground">
-                                썸네일을 영상 시작 인트로로 사용
-                            </span>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                위에서 편집한 썸네일 이미지가 영상 시작 시 보여집니다
-                            </p>
+                {/* 영상 인트로/아웃트로 설정 (가로 배치) */}
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                    {/* 영상 인트로 설정 */}
+                    <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <PlayCircle className="w-4 h-4 text-primary" />
+                            영상 시작 인트로 설정
                         </div>
-                    </label>
 
-                    {/* 인트로 길이 선택 (썸네일을 인트로로 사용할 때만) */}
-                    {localIntroSettings.useAsIntro && (
-                        <div className="ml-7 flex items-center gap-3">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">인트로 길이:</span>
-                            <select
-                                value={localIntroSettings.introDuration}
-                                onChange={(e) => updateIntroSettings({ introDuration: parseInt(e.target.value) })}
-                                className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
-                            >
-                                {INTRO_DURATION_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* 구분선 */}
-                    <div className="relative py-2">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border"></div>
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="px-2 bg-card text-muted-foreground">또는</span>
-                        </div>
-                    </div>
-
-                    {/* 별도 인트로 이미지 사용 */}
-                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                        <input
-                            type="checkbox"
-                            checked={localIntroSettings.separateIntro}
-                            onChange={(e) => updateIntroSettings({
-                                separateIntro: e.target.checked,
-                                useAsIntro: e.target.checked ? false : localIntroSettings.useAsIntro
-                            })}
-                            className="w-4 h-4 mt-0.5 rounded accent-primary"
-                        />
-                        <div className="flex-1">
-                            <span className="text-sm font-medium text-foreground">
-                                별도 인트로 이미지 사용
-                            </span>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                썸네일과 다른 이미지를 영상 시작에 사용합니다 (추후 지원 예정)
-                            </p>
-                        </div>
-                    </label>
-
-                    {/* 별도 인트로 설정 영역 (추후 구현) */}
-                    {localIntroSettings.separateIntro && (
-                        <div className="ml-7 p-3 bg-muted/30 rounded-lg">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <ImageIcon className="w-4 h-4" />
-                                별도 인트로 편집 기능은 추후 업데이트 예정입니다
+                        {/* 썸네일을 인트로로 사용 */}
+                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={localIntroSettings.useAsIntro}
+                                onChange={(e) => updateIntroSettings({
+                                    useAsIntro: e.target.checked,
+                                    separateIntro: e.target.checked ? false : localIntroSettings.separateIntro
+                                })}
+                                className="w-4 h-4 mt-0.5 rounded accent-primary"
+                            />
+                            <div className="flex-1">
+                                <span className="text-sm font-medium text-foreground">
+                                    썸네일을 영상 시작 인트로로 사용
+                                </span>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    위에서 편집한 썸네일 이미지가 영상 시작 시 보여집니다
+                                </p>
                             </div>
-                            <div className="mt-2 flex items-center gap-3">
+                        </label>
+
+                        {/* 인트로 길이 선택 (썸네일을 인트로로 사용할 때만) */}
+                        {localIntroSettings.useAsIntro && (
+                            <div className="ml-7 flex items-center gap-3">
                                 <Clock className="w-4 h-4 text-muted-foreground" />
                                 <span className="text-sm text-muted-foreground">인트로 길이:</span>
                                 <select
@@ -601,71 +547,125 @@ export default function ThumbnailEditor({
                                     ))}
                                 </select>
                             </div>
+                        )}
+
+                        {/* 구분선 */}
+                        <div className="relative py-2">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-border"></div>
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                                <span className="px-2 bg-card text-muted-foreground">또는</span>
+                            </div>
                         </div>
-                    )}
 
-                    {/* 인트로 미사용 안내 */}
-                    {!localIntroSettings.useAsIntro && !localIntroSettings.separateIntro && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                            인트로 없이 바로 영상이 시작됩니다
-                        </p>
-                    )}
-                </div>
+                        {/* 별도 인트로 이미지 사용 */}
+                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={localIntroSettings.separateIntro}
+                                onChange={(e) => updateIntroSettings({
+                                    separateIntro: e.target.checked,
+                                    useAsIntro: e.target.checked ? false : localIntroSettings.useAsIntro
+                                })}
+                                className="w-4 h-4 mt-0.5 rounded accent-primary"
+                            />
+                            <div className="flex-1">
+                                <span className="text-sm font-medium text-foreground">
+                                    별도 인트로 이미지 사용
+                                </span>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    썸네일과 다른 이미지를 영상 시작에 사용합니다 (추후 지원 예정)
+                                </p>
+                            </div>
+                        </label>
 
-                {/* 영상 아웃트로 설정 */}
-                <div className="p-4 bg-card border border-border rounded-xl space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <StopCircle className="w-4 h-4 text-primary" />
-                        영상 종료 아웃트로 설정
+                        {/* 별도 인트로 설정 영역 (추후 구현) */}
+                        {localIntroSettings.separateIntro && (
+                            <div className="ml-7 p-3 bg-muted/30 rounded-lg">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <ImageIcon className="w-4 h-4" />
+                                    별도 인트로 편집 기능은 추후 업데이트 예정입니다
+                                </div>
+                                <div className="mt-2 flex items-center gap-3">
+                                    <Clock className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">인트로 길이:</span>
+                                    <select
+                                        value={localIntroSettings.introDuration}
+                                        onChange={(e) => updateIntroSettings({ introDuration: parseInt(e.target.value) })}
+                                        className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
+                                    >
+                                        {INTRO_DURATION_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 인트로 미사용 안내 */}
+                        {!localIntroSettings.useAsIntro && !localIntroSettings.separateIntro && (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                                인트로 없이 바로 영상이 시작됩니다
+                            </p>
+                        )}
                     </div>
 
-                    {/* 배경 이미지를 아웃트로로 사용 */}
-                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                        <input
-                            type="checkbox"
-                            checked={localIntroSettings.useAsOutro ?? true}
-                            onChange={(e) => updateIntroSettings({ useAsOutro: e.target.checked })}
-                            className="w-4 h-4 mt-0.5 rounded accent-primary"
-                        />
-                        <div className="flex-1">
-                            <span className="text-sm font-medium text-foreground">
-                                배경 이미지를 영상 종료 아웃트로로 사용
-                            </span>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                썸네일 배경 이미지가 영상 끝에 페이드되며 보여집니다 (텍스트 없이 배경만)
+                    {/* 영상 아웃트로 설정 */}
+                    <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <StopCircle className="w-4 h-4 text-primary" />
+                            영상 종료 아웃트로 설정
+                        </div>
+
+                        {/* 배경 이미지를 아웃트로로 사용 */}
+                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={localIntroSettings.useAsOutro ?? true}
+                                onChange={(e) => updateIntroSettings({ useAsOutro: e.target.checked })}
+                                className="w-4 h-4 mt-0.5 rounded accent-primary"
+                            />
+                            <div className="flex-1">
+                                <span className="text-sm font-medium text-foreground">
+                                    배경 이미지를 영상 종료 아웃트로로 사용
+                                </span>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    썸네일 배경 이미지가 영상 끝에 페이드되며 보여집니다 (텍스트 없이 배경만)
+                                </p>
+                            </div>
+                        </label>
+
+                        {/* 아웃트로 길이 선택 */}
+                        {(localIntroSettings.useAsOutro ?? true) && (
+                            <div className="ml-7 flex items-center gap-3">
+                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">아웃트로 길이:</span>
+                                <select
+                                    value={localIntroSettings.outroDuration ?? 3}
+                                    onChange={(e) => updateIntroSettings({ outroDuration: parseInt(e.target.value) })}
+                                    className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
+                                >
+                                    {OUTRO_DURATION_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* 아웃트로 미사용 안내 */}
+                        {!(localIntroSettings.useAsOutro ?? true) && (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                                아웃트로 없이 영상이 종료됩니다
                             </p>
-                        </div>
-                    </label>
-
-                    {/* 아웃트로 길이 선택 */}
-                    {(localIntroSettings.useAsOutro ?? true) && (
-                        <div className="ml-7 flex items-center gap-3">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">아웃트로 길이:</span>
-                            <select
-                                value={localIntroSettings.outroDuration ?? 3}
-                                onChange={(e) => updateIntroSettings({ outroDuration: parseInt(e.target.value) })}
-                                className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
-                            >
-                                {OUTRO_DURATION_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* 아웃트로 미사용 안내 */}
-                    {!(localIntroSettings.useAsOutro ?? true) && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                            아웃트로 없이 영상이 종료됩니다
-                        </p>
-                    )}
+                        )}
+                    </div>
                 </div>
 
             </div>
 
             {/* 오른쪽: 편집 컨트롤 */}
-            <div className="w-1/2 bg-card border border-border rounded-xl p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="flex-1 bg-card border border-border rounded-xl p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 {/* 텍스트 박스 선택 탭 */}
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">텍스트 선택</label>
@@ -787,7 +787,7 @@ export default function ThumbnailEditor({
                             <input
                                 type="range"
                                 min="12"
-                                max="96"
+                                max="150"
                                 value={selectedBoxData.fontSize}
                                 onChange={(e) => updateTextBox(selectedBoxData.id, { fontSize: parseInt(e.target.value) })}
                                 className="w-full"
@@ -819,14 +819,14 @@ export default function ThumbnailEditor({
                                     type="color"
                                     value={selectedBoxData.color}
                                     onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
-                                    className="w-10 h-10 rounded cursor-pointer border border-border"
+                                    className="w-16 h-10 rounded cursor-pointer border border-border"
                                 />
                                 <input
                                     type="text"
                                     value={selectedBoxData.color}
                                     onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
                                     placeholder="#FFFFFF"
-                                    className="flex-1 px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                                    className="w-24 px-3 py-2 border border-border rounded-lg bg-background text-sm"
                                 />
                             </div>
                         </div>

@@ -1,0 +1,5 @@
+# 폰트 파일을 바이너리로 처리 (줄바꿈 변환 방지)
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
