@@ -19,7 +19,7 @@ const TOKEN_KEY = "qt_access_token";
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 300000, // 5분 (영상 생성은 오래 걸릴 수 있음)
 });
 
 // 요청 인터셉터: 토큰 자동 추가 + 디버그 로깅

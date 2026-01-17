@@ -67,20 +67,36 @@ export default function BGMSelector({
   }, []);
 
   // 오디오 재생/정지
-  const togglePlay = (bgm: BGM) => {
+  const togglePlay = async (bgm: BGM) => {
     if (!bgm.preview_url && !bgm.file_path) return;
 
     if (playingId === bgm.id) {
       // 정지
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setPlayingId(null);
     } else {
       // 재생
       if (audioRef.current) {
-        audioRef.current.src = bgm.preview_url || bgm.file_path;
-        audioRef.current.volume = bgmVolume;
-        audioRef.current.play();
-        setPlayingId(bgm.id);
+        try {
+          // 이전 재생 중지
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+
+          // 새 오디오 로드
+          audioRef.current.src = bgm.preview_url || bgm.file_path;
+          audioRef.current.volume = bgmVolume;
+
+          // 로드 완료 후 재생
+          await audioRef.current.load();
+          await audioRef.current.play();
+          setPlayingId(bgm.id);
+        } catch (error) {
+          console.error("Audio playback failed:", error);
+          setPlayingId(null);
+        }
       }
     }
   };
