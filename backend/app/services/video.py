@@ -15,6 +15,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.config import get_settings
+from app.services.subtitle_renderer import SubtitleRenderer, SubtitleStyle
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -571,7 +572,278 @@ class VideoComposer:
         output_path: str
     ) -> None:
         """
-        한글 자막 오버레이 (하드섭) - YouTube 스타일
+        한글 자막 오버레이 - PIL 렌더링 방식
+
+        PIL로 자막 이미지를 생성하고 FFmpeg overlay로 합성합니다.
+        100개 이상 자막은 청크 기반으로 처리합니다.
+        """
+        from app.services.subtitle_renderer import SubtitleRenderer, SubtitleStyle
+
+        # SRT 파싱하여 자막 개수 확인
+        renderer = SubtitleRenderer()
+        entries = renderer.parse_srt(srt_path)
+
+        # 100개 이상이면 청크 기반 처리
+        if len(entries) >= 100:
+            logger.info(f"Large subtitle count ({len(entries)}), using chunked processing")
+            self._add_subtitles_pil_chunked(video_path, srt_path, output_path)
+        else:
+            self._add_subtitles_pil(video_path, srt_path, output_path)
+
+    def _add_subtitles_pil(
+        self,
+        video_path: str,
+        srt_path: str,
+        output_path: str
+    ) -> None:
+        """
+        PIL 자막 렌더링 + FFmpeg overlay 합성
+
+        과정:
+        1. SRT 파싱 -> 자막별 PNG 생성
+        2. FFmpeg filter_complex로 모든 PNG overlay
+        3. enable='between(t,start,end)'로 표시 시간 제어
+        """
+        from app.services.subtitle_renderer import SubtitleRenderer, SubtitleStyle
+
+        # 스타일 설정 (PIL 기본 스타일 사용)
+        font_path = Path(__file__).parent.parent / "fonts" / "NotoSansKR-Regular.ttf"
+        style = SubtitleStyle(
+            font_path=str(font_path) if font_path.exists() else "",
+            font_size=96,         # 매우 큰 가독성 (1080p 기준)
+            outline_width=6,
+            margin_bottom=150,    # 화면 하단 (약 14% 위치)
+            margin_horizontal=100,
+            video_width=self.OUTPUT_WIDTH,
+            video_height=self.OUTPUT_HEIGHT
+        )
+
+        renderer = SubtitleRenderer(style)
+        subtitle_pngs = renderer.render_all_subtitles(srt_path)
+
+        if not subtitle_pngs:
+            # 자막이 없으면 그냥 복사
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", video_path,
+                "-c:v", "copy",
+                "-c:a", "copy",
+                output_path
+            ]
+            self._run_ffmpeg(cmd)
+            return
+
+        try:
+            # FFmpeg 입력 파일 목록 구성
+            inputs = ["-i", video_path]
+            for png_path, _, _ in subtitle_pngs:
+                inputs.extend(["-i", png_path])
+
+            # filter_complex 구성
+            filter_parts = []
+            overlay_chain = "[0:v]"
+
+            for i, (png_path, start, end) in enumerate(subtitle_pngs, start=1):
+                # enable 조건: 해당 시간 구간에만 표시
+                output_label = f"[v{i}]"
+                filter_parts.append(
+                    f"{overlay_chain}[{i}:v]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'{output_label}"
+                )
+                overlay_chain = output_label
+
+            # 전체 filter_complex 문자열
+            filter_complex = ";".join(filter_parts)
+
+            # FFmpeg 명령
+            cmd = ["ffmpeg", "-y"] + inputs + [
+                "-filter_complex", filter_complex,
+                "-map", overlay_chain,
+                "-map", "0:a",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-c:a", "copy",
+                "-movflags", "+faststart",
+                output_path
+            ]
+
+            logger.info(f"Adding {len(subtitle_pngs)} PIL subtitles with overlay")
+            self._run_ffmpeg(cmd)
+
+        finally:
+            # 임시 PNG 정리
+            renderer.cleanup([p for p, _, _ in subtitle_pngs])
+
+    def _add_subtitles_pil_chunked(
+        self,
+        video_path: str,
+        srt_path: str,
+        output_path: str,
+        chunk_duration: float = 30.0
+    ) -> None:
+        """
+        청크 기반 PIL 자막 합성 (대량 자막 최적화)
+
+        자막이 100개 이상일 경우 overlay 체인이 너무 길어지는 문제 해결
+        - 영상을 30초 단위로 분할
+        - 각 청크에 해당하는 자막만 overlay
+        - 청크들을 concat으로 연결
+        """
+        from app.services.subtitle_renderer import SubtitleRenderer, SubtitleStyle
+
+        # 영상 전체 길이 확인
+        cmd_probe = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            video_path
+        ]
+        result = subprocess.run(cmd_probe, capture_output=True, text=True)
+        try:
+            total_duration = float(result.stdout.strip())
+        except ValueError:
+            total_duration = 300.0  # 기본값 5분
+
+        # 스타일 설정 (PIL 기본 스타일 사용)
+        font_path = Path(__file__).parent.parent / "fonts" / "NotoSansKR-Regular.ttf"
+        style = SubtitleStyle(
+            font_path=str(font_path) if font_path.exists() else "",
+            font_size=96,         # 매우 큰 가독성
+            outline_width=6,
+            margin_bottom=150,    # 화면 하단 (약 14% 위치)
+            video_width=self.OUTPUT_WIDTH,
+            video_height=self.OUTPUT_HEIGHT
+        )
+
+        renderer = SubtitleRenderer(style)
+        all_entries = renderer.parse_srt(srt_path)
+
+        # 청크별로 처리
+        chunk_videos = []
+        chunk_start = 0.0
+
+        while chunk_start < total_duration:
+            chunk_end = min(chunk_start + chunk_duration, total_duration)
+            chunk_id = str(uuid4())[:8]
+
+            # 1. 청크 영상 추출
+            chunk_video = str(self.temp_dir / f"chunk_{chunk_id}.mp4")
+            cmd_extract = [
+                "ffmpeg", "-y",
+                "-ss", str(chunk_start),
+                "-i", video_path,
+                "-t", str(chunk_end - chunk_start),
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                chunk_video
+            ]
+            self._run_ffmpeg(cmd_extract)
+
+            # 2. 이 청크에 해당하는 자막 필터링
+            chunk_entries = [
+                e for e in all_entries
+                if e.start < chunk_end and e.end > chunk_start
+            ]
+
+            # 3. 자막이 있으면 렌더링
+            if chunk_entries:
+                # 자막별 PNG 생성 (시간 오프셋 조정)
+                subtitle_pngs = []
+                for entry in chunk_entries:
+                    png_path = str(self.temp_dir / f"sub_{chunk_id}_{entry.index:04d}.png")
+                    renderer.render_subtitle_image(entry.text, png_path)
+
+                    # 청크 내 상대 시간으로 변환
+                    rel_start = max(0, entry.start - chunk_start)
+                    rel_end = min(chunk_end - chunk_start, entry.end - chunk_start)
+                    subtitle_pngs.append((png_path, rel_start, rel_end))
+
+                # overlay 합성
+                chunk_with_sub = str(self.temp_dir / f"chunk_sub_{chunk_id}.mp4")
+
+                inputs = ["-i", chunk_video]
+                for png_path, _, _ in subtitle_pngs:
+                    inputs.extend(["-i", png_path])
+
+                filter_parts = []
+                overlay_chain = "[0:v]"
+
+                for i, (png_path, start, end) in enumerate(subtitle_pngs, start=1):
+                    output_label = f"[v{i}]"
+                    filter_parts.append(
+                        f"{overlay_chain}[{i}:v]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'{output_label}"
+                    )
+                    overlay_chain = output_label
+
+                filter_complex = ";".join(filter_parts)
+
+                cmd_overlay = ["ffmpeg", "-y"] + inputs + [
+                    "-filter_complex", filter_complex,
+                    "-map", overlay_chain,
+                    "-map", "0:a",
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "23",
+                    "-c:a", "copy",
+                    chunk_with_sub
+                ]
+                self._run_ffmpeg(cmd_overlay)
+
+                # PNG 정리
+                renderer.cleanup([p for p, _, _ in subtitle_pngs])
+
+                # 원본 청크 삭제
+                self._cleanup_temp([chunk_video])
+                chunk_videos.append(chunk_with_sub)
+            else:
+                # 자막 없으면 그대로 사용
+                chunk_videos.append(chunk_video)
+
+            chunk_start = chunk_end
+
+        # 4. 모든 청크 concat
+        if len(chunk_videos) == 1:
+            # 청크가 1개면 그대로 사용
+            os.rename(chunk_videos[0], output_path)
+        else:
+            # concat 리스트 파일 생성
+            concat_list = str(self.temp_dir / f"concat_{uuid4()}.txt")
+            with open(concat_list, "w") as f:
+                for chunk in chunk_videos:
+                    escaped = chunk.replace("'", "'\\''")
+                    f.write(f"file '{escaped}'\n")
+
+            cmd_concat = [
+                "ffmpeg", "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", concat_list,
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart",
+                output_path
+            ]
+            self._run_ffmpeg(cmd_concat)
+
+            # 정리
+            self._cleanup_temp(chunk_videos + [concat_list])
+
+        logger.info(f"Chunked subtitle processing complete: {len(chunk_videos)} chunks")
+
+    def _add_subtitles_ffmpeg(
+        self,
+        video_path: str,
+        srt_path: str,
+        output_path: str
+    ) -> None:
+        """
+        한글 자막 오버레이 (하드섭) - 기존 FFmpeg subtitles 방식 (백업용)
 
         자막 스타일:
         - 폰트: NanumBarunGothic (부드러운 둥근 폰트)

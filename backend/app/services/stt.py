@@ -19,14 +19,14 @@ class WhisperService:
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.model = "whisper-large-v3-turbo"  # $0.04/hour
 
-    # 자막 설정 (Netflix 한국어 자막 가이드라인 기준)
+    # 자막 설정 (Netflix 한국어 자막 가이드라인 기준 - 더 짧게 조정)
     # 참조: docs/KOREAN_SUBTITLE_SEGMENTATION_GUIDE.md
-    MAX_CHARS_PER_LINE = 16  # 한 줄 최대 글자 수 (Netflix 한국어 기준)
-    MAX_CHARS_PER_SUBTITLE = 32  # 자막 블록 최대 글자 수 (2줄 x 16자)
+    MAX_CHARS_PER_LINE = 12  # 한 줄 최대 글자 수 (짧은 자막을 위해 감소)
+    MAX_CHARS_PER_SUBTITLE = 24  # 자막 블록 최대 글자 수 (2줄 x 12자)
     MIN_DURATION = 0.83  # 자막 최소 표시 시간 (초) - Netflix 기준 5/6초
-    MAX_DURATION = 7.0  # 자막 최대 표시 시간 (초) - Netflix 기준
+    MAX_DURATION = 5.0  # 자막 최대 표시 시간 (초) - 더 짧게 (7초→5초)
     MIN_GAP_FRAMES = 2  # 자막 간 최소 간격 (프레임) @ 30fps = 약 67ms
-    TARGET_CPS = 16  # 목표 CPS (Characters Per Second) - 설교/교육 콘텐츠 14-16
+    TARGET_CPS = 14  # 목표 CPS (Characters Per Second) - 더 여유롭게 (16→14)
 
     # 한국어 문장 종결 패턴 (우선순위 순)
     # Netflix/Kss 기준: 확실한 종결어미만 포함
@@ -94,6 +94,21 @@ class WhisperService:
         # 추가 (설교/교육 콘텐츠 특화)
         '또한', '게다가', '더구나', '뿐만아니라', '심지어',
         '왜냐하면', '그러면', '그렇다면', '만약', '만일', '오히려',
+    )
+
+    # 보조 용언 패턴 (분리하면 안 되는 복합 표현)
+    # "할 수" 같은 의존명사 + 보조동사 구성
+    AUXILIARY_VERB_PATTERNS = (
+        '수 있',   # "할 수 있다", "볼 수 있어"
+        '수 없',   # "할 수 없다", "볼 수 없어"
+        '줄 알',   # "할 줄 알아", "할 줄 알았어"
+        '줄 모',   # "할 줄 모르다"
+        '게 되',   # "하게 되다", "보게 됐어"
+        '게 하',   # "하게 하다", "보게 해"
+        '지 않',   # "하지 않다", "가지 않아"
+        '지 말',   # "하지 말아", "가지 마"
+        '고 싶',   # "하고 싶다", "보고 싶어"
+        '고 있',   # "하고 있다", "보고 있어"
     )
 
     def transcribe_to_srt(
@@ -605,7 +620,7 @@ class WhisperService:
 
             return line1 + "\n" + line2
 
-        # 공백 있는 경우 - 균등 분할 시도
+        # 공백 있는 경우 - 균등 분할 시도 (보조 용언 고려)
         words = text.split(' ')
 
         if len(words) == 1:
@@ -616,6 +631,27 @@ class WhisperService:
         best_diff = float('inf')
 
         for i in range(1, len(words)):
+            # 보조 용언 패턴 검사 (분리하면 안 되는 지점)
+            # "할 수", "볼 수" 같은 패턴을 감지
+            should_skip = False
+            if i < len(words):
+                # 분할 지점 앞뒤 2단어 확인
+                context = ' '.join(words[max(0, i-1):min(len(words), i+2)])
+                for pattern in self.AUXILIARY_VERB_PATTERNS:
+                    if pattern in context:
+                        # 패턴이 분할 지점에 걸치는지 확인
+                        left = ' '.join(words[:i])
+                        right = ' '.join(words[i:])
+                        # 패턴이 완전히 한쪽에 있으면 OK, 걸치면 SKIP
+                        if pattern in left or pattern in right:
+                            pass  # 완전히 한쪽에 있음 - OK
+                        else:
+                            should_skip = True  # 패턴이 걸침 - SKIP
+                            break
+
+            if should_skip:
+                continue
+
             line1 = ' '.join(words[:i])
             line2 = ' '.join(words[i:])
 
