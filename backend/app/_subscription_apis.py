@@ -108,8 +108,50 @@ async def portone_webhook(request: Request):
     try:
         body = await request.json()
         logger.info(f"포트원 웹훅 수신: {body}")
-        # TODO: 웹훅 검증 및 처리
+
+        # 이벤트 타입별 처리
+        event_type = body.get("type")
+
+        if event_type == "Transaction.Ready":
+            # 빌링키 발급 완료
+            data = body.get("data", {})
+            billing_key = data.get("billingKey")
+            customer_id = data.get("customer", {}).get("id")
+
+            if billing_key and customer_id:
+                # 구독 활성화 (백업 처리)
+                try:
+                    subscription_service = get_subscription_service()
+                    portone_service = get_portone_service()
+
+                    # 첫 결제 실행
+                    payment_result = await portone_service.charge_billing_key(
+                        billing_key=billing_key,
+                        amount=30000,
+                        order_name="QT Video SaaS basic 플랜 (웹훅)",
+                        customer_id=customer_id,
+                    )
+
+                    if payment_result.get("success"):
+                        subscription_service.upgrade_subscription(
+                            church_id=customer_id,
+                            tier="basic",
+                            billing_key=billing_key
+                        )
+                        logger.info(f"웹훅을 통한 구독 활성화 완료: {customer_id}")
+                except Exception as sub_error:
+                    logger.error(f"웹훅 구독 활성화 실패: {sub_error}")
+
+        elif event_type == "Transaction.Paid":
+            # 결제 성공
+            logger.info(f"결제 성공 웹훅: {body}")
+
+        elif event_type == "Transaction.Failed":
+            # 결제 실패
+            logger.warning(f"결제 실패 웹훅: {body}")
+
         return {"status": "received"}
+
     except Exception as e:
         logger.error(f"웹훅 처리 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))

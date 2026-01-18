@@ -29,7 +29,8 @@ export default function PaymentButton({
       // 포트원 SDK 동적 로드
       const PortOne = await import("@portone/browser-sdk/v2");
 
-      const response = await PortOne.requestIssueBillingKey({
+      // REDIRECTION 모드: 페이지 이동 후 callback 페이지에서 처리
+      await PortOne.requestIssueBillingKey({
         storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
         channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
         billingKeyMethod: "EASY_PAY",
@@ -39,55 +40,20 @@ export default function PaymentButton({
           customerId: user.church_id,
           email: user.email || undefined,
           fullName: user.name || undefined,
-          phoneNumber: "01012345678", // 하이픈 제거
+          phoneNumber: "01012345678",
         },
         windowType: {
-          pc: "IFRAME",
+          pc: "REDIRECTION",     // ✅ IFRAME → REDIRECTION 변경
           mobile: "REDIRECTION",
         },
-        redirectUrl: `${window.location.origin}/subscription/callback`,
+        redirectUrl: `${window.location.origin}/subscription/callback?customerId=${user.church_id}`, // ✅ customerId 추가
       });
 
-      console.log("PortOne Response:", response); // 디버깅용 로그
-
-      if (!response) {
-        onError?.("결제 요청이 취소되었거나 실패했습니다.");
-        return;
-      }
-
-      if (response.code !== undefined) {
-        // V2 응답 구조가 다를 수 있음
-      }
-
-      if (response.code === "SUCCESS" && response.billingKey) {
-        // 서버에 빌링키 저장 및 첫 결제 실행
-        const apiResponse = await fetch("/api/subscription/activate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-          body: JSON.stringify({
-            billing_key: response.billingKey,
-            tier: "basic",
-            church_id: user.church_id,
-          }),
-        });
-
-        const result = await apiResponse.json();
-
-        if (result.success) {
-          onSuccess?.();
-        } else {
-          onError?.(result.message || "구독 활성화에 실패했습니다.");
-        }
-      } else {
-        onError?.(response.message || "결제 요청에 실패했습니다.");
-      }
+      // 이 줄 이후는 실행되지 않음 (페이지가 리다이렉트됨)
+      // 모든 후속 처리는 /subscription/callback 페이지에서 수행
     } catch (error) {
       console.error("결제 오류:", error);
       onError?.("결제 처리 중 오류가 발생했습니다.");
-    } finally {
       setIsLoading(false);
     }
   };

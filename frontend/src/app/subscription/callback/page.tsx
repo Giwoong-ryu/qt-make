@@ -1,77 +1,128 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-function CallbackHandler() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-
-    useEffect(() => {
-        const handleCallback = async () => {
-            // 포트원 리다이렉션 결과 처리
-            const billingKey = searchParams.get("billingKey");
-            const code = searchParams.get("code");
-
-            if (code === "SUCCESS" && billingKey) {
-                try {
-                    const token = localStorage.getItem("access_token");
-                    const response = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/api/subscription/activate`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${token}`,
-                            },
-                            body: JSON.stringify({
-                                billing_key: billingKey,
-                                tier: "basic",
-                            }),
-                        }
-                    );
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        // 성공 시 구독 페이지로 이동
-                        router.push("/subscription?success=true");
-                    } else {
-                        router.push("/subscription?error=" + encodeURIComponent(result.message));
-                    }
-                } catch (error) {
-                    console.error("콜백 처리 오류:", error);
-                    router.push("/subscription?error=처리 중 오류가 발생했습니다");
-                }
-            } else {
-                // 실패 또는 취소
-                const message = searchParams.get("message") || "결제가 취소되었습니다";
-                router.push("/subscription?error=" + encodeURIComponent(message));
-            }
-        };
-
-        handleCallback();
-    }, [searchParams, router]);
-
-    return (
-        <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-white">결제 결과 처리 중...</p>
-        </div>
-    );
-}
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SubscriptionCallbackPage() {
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-            <Suspense fallback={
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-                    <p className="text-white">로딩 중...</p>
-                </div>
-            }>
-                <CallbackHandler />
-            </Suspense>
-        </div>
-    );
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { refreshUser } = useAuth();
+  const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
+  const [message, setMessage] = useState("결제 정보를 처리 중입니다...");
+
+  useEffect(() => {
+    const processCallback = async () => {
+      try {
+        // 포트원 V2 REDIRECTION 응답 파라미터 추출
+        const code = searchParams.get("code");
+        const billingKey = searchParams.get("billingKey");
+        const errorMessage = searchParams.get("message");
+        const customerId = searchParams.get("customerId");
+
+        console.log("Callback params:", { code, billingKey, errorMessage, customerId });
+
+        // 성공 여부 확인 (code === "0" 또는 code === null이면 성공)
+        if (code && code !== "0") {
+          throw new Error(errorMessage || "결제 요청이 실패했습니다.");
+        }
+
+        if (!billingKey) {
+          throw new Error("빌링키를 받지 못했습니다.");
+        }
+
+        // 백엔드에 빌링키 전달 및 구독 활성화
+        const token = localStorage.getItem("qt_access_token");
+        if (!token) {
+          throw new Error("로그인 정보가 없습니다. 다시 로그인해주세요.");
+        }
+
+        if (!customerId) {
+          throw new Error("교회 정보를 찾을 수 없습니다.");
+        }
+
+        const response = await fetch("/api/subscription/activate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            billing_key: billingKey,
+            tier: "basic",
+            church_id: customerId,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "구독 활성화에 실패했습니다.");
+        }
+
+        // 사용자 정보 갱신
+        await refreshUser();
+
+        setStatus("success");
+        setMessage("구독이 성공적으로 활성화되었습니다!");
+
+        // 3초 후 구독 페이지로 이동
+        setTimeout(() => {
+          router.push("/subscription");
+        }, 3000);
+
+      } catch (error: any) {
+        console.error("Callback processing error:", error);
+        setStatus("error");
+        setMessage(error.message || "처리 중 오류가 발생했습니다.");
+      }
+    };
+
+    processCallback();
+  }, [searchParams, refreshUser, router]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="max-w-md w-full bg-gray-800 rounded-lg shadow-xl p-8">
+        {status === "processing" && (
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-white mb-2">처리 중...</h2>
+            <p className="text-gray-400">{message}</p>
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="text-center">
+            <div className="mb-4">
+              <svg className="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-2">결제 성공!</h2>
+            <p className="text-gray-400">{message}</p>
+            <p className="text-sm text-gray-500 mt-4">잠시 후 자동으로 이동합니다...</p>
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className="text-center">
+            <div className="mb-4">
+              <svg className="mx-auto h-16 w-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-2">결제 실패</h2>
+            <p className="text-gray-400 mb-4">{message}</p>
+            <button
+              onClick={() => router.push("/subscription")}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              다시 시도하기
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

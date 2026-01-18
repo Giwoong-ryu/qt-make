@@ -38,19 +38,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// 토큰 저장/로드
-const TOKEN_KEY = "qt_access_token";
+// 토큰 저장/로드 (다른 컴포넌트에서도 사용 가능하도록 export)
+export const TOKEN_KEY = "qt_access_token";
 
-function getToken(): string | null {
+export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
-function setToken(token: string): void {
+export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
-function removeToken(): void {
+export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 

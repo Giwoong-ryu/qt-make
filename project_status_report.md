@@ -1,21 +1,48 @@
-# 프로젝트 현황 보고서 (2026-01-18)
+# 프로젝트 현황 보고서 (2026-01-19)
 
-## 🚨 현재 문제점 (Current Issues & Failures)
+## ✅ 해결 완료 (2026-01-19 업데이트)
 
-### 1. 포트원(PortOne) V2 카카오페이 빌링키 발급 실패
-- **현상**: PC 환경에서 `IFRAME` 방식으로 카카오페이 정기결제(빌링키 발급) 시도 시, 카카오페이 인증은 성공(`pg_token` 발급됨)하지만 웹사이트로 돌아왔을 때 **응답(Callback)을 받지 못하거나 `undefined`로 떨어지는 현상** 발생.
-- **원인 추정**: 
-  - 카카오페이의 PC 결제 프로세스 특성상, 팝업/리다이렉트 처리 과정에서 `IFRAME` 모드의 통신이 끊기거나 정상적으로 부모 창에 메시지를 전달하지 못하는 것으로 보임.
-  - V2 SDK의 `requestIssueBillingKey`가 카카오페이와 같은 리다이렉트 기반 PG사에서 `IFRAME` 모드일 때 콜백 처리가 불안정할 수 있음.
-- **시도된 해결책 (실패/보류)**:
-  - `amount: 0`, `orderName` 파라미터 추가 (API 에러 해결됨)
-  - CID `TCSUBSCRIP` 변경 (API 에러 해결됨)
-  - `PORTONE_API_KEY` 환경변수 설정 (백엔드 통신 에러 해결됨)
-  - `portone_service.py` 구문 오류 수정 (백엔드 실행 에러 해결됨)
-  - PC `windowType`을 `REDIRECTION`으로 변경 시도했으나, 현재 코드는 다시 `IFRAME`으로 롤백됨.
+### 1. 포트원(PortOne) V2 카카오페이 빌링키 발급 문제 해결
+- **문제**: PC 환경에서 `IFRAME` 방식 사용 시 콜백 응답 실패
+- **해결책 적용**:
+  ✅ **REDIRECTION 모드로 전환** (PC + Mobile 통일)
+  ✅ **콜백 페이지 생성** (`/subscription/callback`)
+  ✅ **토큰 키 통일** (`qt_access_token`)
+  ✅ **웹훅 구현** (백업 처리 로직)
 
-### 2. 백엔드-프론트엔드 통신
-- 결제 성공 콜백이 프론트엔드에서 트리거되지 않아, 백엔드의 `/api/subscription/activate` API가 호출되지 않고 있음.
+### 2. 구현 완료 내역 (2026-01-19)
+#### Frontend
+- ✅ **콜백 페이지 추가**: `/subscription/callback/page.tsx`
+  - 포트원 리다이렉트 응답 파라미터 처리 (`code`, `billingKey`, `customerId`)
+  - 성공/실패 UI 표시
+  - 백엔드 API 호출 및 구독 활성화
+- ✅ **PaymentButton 수정**:
+  - `windowType.pc`: `IFRAME` → `REDIRECTION` 변경
+  - `redirectUrl`에 `customerId` 쿼리 파라미터 추가
+  - 불필요한 응답 처리 로직 제거 (콜백 페이지로 이관)
+- ✅ **AuthContext 개선**:
+  - `TOKEN_KEY`, `getToken()`, `setToken()`, `removeToken()` export 추가
+  - 다른 컴포넌트에서 토큰 관리 재사용 가능
+
+#### Backend
+- ✅ **웹훅 처리 개선** (`_subscription_apis.py`):
+  - `Transaction.Ready` 이벤트: 빌링키 발급 완료 시 자동 구독 활성화
+  - `Transaction.Paid` 이벤트: 결제 성공 로그
+  - `Transaction.Failed` 이벤트: 결제 실패 경고
+  - 프론트엔드 콜백 실패 시 웹훅으로 보완 가능
+
+---
+
+## 🚨 과거 문제점 (해결됨 - 참고용)
+
+### 1. ~~포트원(PortOne) V2 카카오페이 빌링키 발급 실패~~ ✅ 해결
+- ~~**현상**: PC 환경에서 `IFRAME` 방식 사용 시 콜백 `undefined`~~
+- ~~**원인**: 카카오페이 리다이렉트 → 부모창 통신 실패~~
+- **해결**: REDIRECTION 모드 + 콜백 페이지 생성
+
+### 2. ~~백엔드-프론트엔드 통신 실패~~ ✅ 해결
+- ~~**현상**: `/api/subscription/activate` API 미호출~~
+- **해결**: 콜백 페이지에서 토큰과 함께 API 호출 구현
 
 ---
 
