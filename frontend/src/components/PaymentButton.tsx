@@ -34,10 +34,7 @@ export default function PaymentButton({
         channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
         billingKeyMethod: "EASY_PAY",
         issueName: "프리미엄 정기결제",
-        orderName: "프리미엄 정기결제 (빌링키)",
         issueId: `issue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        // @ts-ignore
-        amount: 0,
         customer: {
           customerId: user.church_id,
           email: user.email || undefined,

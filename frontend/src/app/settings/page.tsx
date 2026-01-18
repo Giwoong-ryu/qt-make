@@ -108,7 +108,7 @@ export default function SettingsPage() {
     const fetchDictionary = async () => {
       setLoadingDictionary(true);
       try {
-        const entries = await getReplacementDictionary(user.church_id);
+        const entries = await getReplacementDictionary(user.church_id!);
         setDictionaryEntries(entries);
       } catch (error) {
         console.error("치환 사전 로드 실패:", error);

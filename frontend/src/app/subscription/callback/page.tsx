@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SubscriptionCallbackPage() {
+function CallbackHandler() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -54,11 +54,24 @@ export default function SubscriptionCallbackPage() {
     }, [searchParams, router]);
 
     return (
+        <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-white">결제 결과 처리 중...</p>
+        </div>
+    );
+}
+
+export default function SubscriptionCallbackPage() {
+    return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-            <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-                <p className="text-white">결제 결과 처리 중...</p>
-            </div>
+            <Suspense fallback={
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                    <p className="text-white">로딩 중...</p>
+                </div>
+            }>
+                <CallbackHandler />
+            </Suspense>
         </div>
     );
 }

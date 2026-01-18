@@ -26,13 +26,13 @@ import {
   uploadThumbnail,
   deleteVideo,
   addReplacementEntries,
-  generateQTThumbnail,
   saveThumbnailLayout,
   getThumbnailLayout,
   regenerateVideo,
+  saveCanvasThumbnail,
 } from "@/lib/api";
 import ThumbnailConceptPicker from "./ThumbnailConceptPicker";
-import ThumbnailEditor, { type IntroSettings } from "./ThumbnailEditor";
+import ThumbnailEditor, { type IntroSettings, type ThumbnailEditorRef } from "./ThumbnailEditor";
 interface VideoEditModalProps {
   videoId: string;
   onClose: () => void;
@@ -73,6 +73,18 @@ export default function VideoEditModal({
   // 저장된 레이아웃 (텍스트 박스 포함)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [savedLayout, setSavedLayout] = useState<any>(null);
+
+  // Canvas에서 export한 이미지 (영상 재생성 시 사용)
+  const [canvasImageData, setCanvasImageData] = useState<string | null>(null);
+
+  // Canvas 이미지 변경 핸들러 (디버그 로깅 포함)
+  const handleCanvasImageChange = (imageData: string | null) => {
+    console.log("[VideoEditModal] onCanvasImageChange 호출됨:", imageData ? `${imageData.length} bytes` : "null");
+    setCanvasImageData(imageData);
+  };
+
+  // ThumbnailEditor ref (Canvas 이미지 export용)
+  const thumbnailEditorRef = useRef<ThumbnailEditorRef>(null);
 
   // 비디오 플레이어
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -308,6 +320,51 @@ export default function VideoEditModal({
   // 영상 재생성
   const handleRegenerate = async () => {
     if (!video) return;
+
+    // 디버그: 현재 상태 로깅
+    console.log("[Regenerate] 시작 - 상태 확인:");
+    console.log("  - activeTab:", activeTab);
+    console.log("  - selectedTemplateUrl:", selectedTemplateUrl ? "있음" : "없음");
+    console.log("  - thumbnailEditorRef.current:", thumbnailEditorRef.current ? "있음" : "없음 (null)");
+    console.log("  - canvasImageData 상태:", canvasImageData ? `${canvasImageData.length} bytes` : "없음 (null)");
+
+    let imageDataToUse: string | null = null;
+
+    // 1. 먼저 ref를 통해 Canvas 이미지 직접 캡처 시도 (가장 확실한 방법)
+    if (thumbnailEditorRef.current) {
+      const freshCanvasImage = thumbnailEditorRef.current.exportCanvasImage();
+      if (freshCanvasImage) {
+        imageDataToUse = freshCanvasImage;
+        console.log("[Regenerate] ref.exportCanvasImage() 성공:", freshCanvasImage.length, "bytes");
+      } else {
+        console.log("[Regenerate] ref.exportCanvasImage() 실패 - null 반환");
+      }
+    }
+
+    // 2. ref 캡처 실패 시 기존 상태값 사용
+    if (!imageDataToUse && canvasImageData) {
+      imageDataToUse = canvasImageData;
+      console.log("[Regenerate] 기존 canvasImageData 상태 사용:", canvasImageData.length, "bytes");
+    }
+
+    // 3. 배경이 선택되어 있는데 Canvas 이미지가 없으면 경고
+    if (!imageDataToUse && selectedTemplateUrl) {
+      console.log("[Regenerate] 배경은 선택됨, Canvas 이미지 없음 - 사용자 확인 필요");
+      const goToThumbnail = confirm(
+        "썸네일 이미지가 아직 생성되지 않았습니다.\n\n" +
+        "썸네일 탭에서 '썸네일 생성' 버튼을 눌러 이미지를 먼저 생성해주세요.\n\n" +
+        "[확인] 썸네일 탭으로 이동\n" +
+        "[취소] FFmpeg으로 썸네일 생성 (Canvas와 다를 수 있음)"
+      );
+      if (goToThumbnail) {
+        setActiveTab("thumbnail");
+        return;
+      }
+    }
+
+    // 최종 상태 로깅
+    console.log("[Regenerate] 최종 imageDataToUse:", imageDataToUse ? `${imageDataToUse.length} bytes` : "없음 - FFmpeg 사용");
+
     if (!confirm("현재 설정(자막, 배경 등)으로 영상을 다시 만드시겠습니까?\n이전 영상은 덮어씌워집니다.")) return;
 
     setRegenerating(true);
@@ -315,8 +372,9 @@ export default function VideoEditModal({
       // 1. 자막 저장 (선택 사항이지만 안전하게)
       await updateSubtitles(videoId, subtitles, video.church_id);
 
-      // 2. 재생성 요청
-      await regenerateVideo(videoId, {}, video.church_id);
+      // 2. 재생성 요청 (Canvas 이미지 포함)
+      console.log("[Regenerate] API 호출 - canvas_image_data:", imageDataToUse ? `${imageDataToUse.length} bytes` : "undefined");
+      await regenerateVideo(videoId, { canvasImageData: imageDataToUse || undefined }, video.church_id);
 
       alert("영상 재생성이 시작되었습니다!\n완료되면 알림을 보내드리거나 목록에서 확인할 수 있습니다.");
       onClose(); // 모달 닫기 (백그라운드 작업이므로)
@@ -445,7 +503,7 @@ export default function VideoEditModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold truncate">{video.title}</h2>
@@ -750,6 +808,7 @@ export default function VideoEditModal({
                 <>
                   {/* 드래그 에디터 */}
                   <ThumbnailEditor
+                    ref={thumbnailEditorRef}
                     backgroundImageUrl={selectedTemplateUrl}
                     initialLayout={savedLayout ? {
                       textBoxes: savedLayout.text_boxes,
@@ -760,32 +819,18 @@ export default function VideoEditModal({
                     subTitle=""
                     dateText={new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" }).replace(",", "")}
                     bibleVerse=""
+                    onCanvasImageChange={handleCanvasImageChange}
                     onGenerate={async (layout) => {
-                      if (!layout.backgroundImageUrl) {
-                        alert("배경 이미지를 선택해주세요.");
+                      // Canvas에서 직접 export한 이미지 사용
+                      if (!layout.canvasImageData) {
+                        alert("썸네일을 생성할 수 없습니다. 배경 이미지가 로드되었는지 확인하세요.");
                         return;
                       }
 
                       setSaving(true);
                       try {
-                        // API 호출하여 썸네일 생성 + DB 저장
-                        const result = await generateQTThumbnail(
-                          {
-                            textBoxes: layout.textBoxes.map(box => ({
-                              id: box.id,
-                              text: box.text,
-                              x: box.x,
-                              y: box.y,
-                              fontSize: box.fontSize,
-                              fontFamily: box.fontFamily,
-                              color: box.color,
-                              visible: box.visible,
-                            })),
-                            backgroundImageUrl: layout.backgroundImageUrl,
-                            introSettings: layout.introSettings,
-                          },
-                          { videoId }  // videoId 전달하여 DB에 저장
-                        );
+                        // Canvas 이미지를 직접 서버에 저장
+                        const result = await saveCanvasThumbnail(videoId, layout.canvasImageData);
 
                         // 썸네일 URL 업데이트
                         setVideo((prev) =>

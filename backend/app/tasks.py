@@ -573,11 +573,15 @@ def regenerate_video_task(
     church_id: str,
     clip_ids: list[str] | None = None,
     bgm_id: str | None = None,
-    bgm_volume: float = 0.12
+    bgm_volume: float = 0.12,
+    canvas_image_data: str | None = None  # Canvas에서 export한 base64 이미지
 ):
     """
     영상 재생성 (자막 수정, BGM 변경, 클립 변경 반영)
     STT 단계를 건너뛰고 기존 SRT(또는 수정된 SRT)를 사용
+
+    canvas_image_data가 있으면 FFmpeg 썸네일 생성을 건너뛰고 Canvas 이미지를 직접 사용
+    → 프론트엔드 Canvas 미리보기와 100% 일치 보장
     """
     from supabase import create_client
     import httpx
@@ -690,48 +694,72 @@ def regenerate_video_task(
 
         if use_intro:
             try:
-                # 썸네일 생성 로직
                 self.update_state(state="PROCESSING", meta={"progress": 40, "step": "인트로 썸네일 생성 중..."})
 
-                import httpx
                 import tempfile as tf
+                import base64
 
-                # 배경 이미지 다운로드 (snake_case 또는 camelCase 둘 다 지원)
-                bg_url = thumbnail_layout.get("background_image_url") or thumbnail_layout.get("backgroundImageUrl")
-                if not bg_url:
-                    raise ValueError("Background image URL missing")
+                # Canvas 이미지가 있으면 직접 사용 (FFmpeg 생성 건너뛰기)
+                if canvas_image_data:
+                    logger.info("[Regenerate] Canvas 이미지 데이터 사용 (FFmpeg 생성 스킵)")
 
-                # R2 URL 처리
-                if not bg_url.startswith("http"):
-                    bg_url = f"{settings.R2_PUBLIC_URL}/{bg_url}"
+                    # base64 디코딩 (data:image/jpeg;base64,... 형식 처리)
+                    if canvas_image_data.startswith("data:"):
+                        # data:image/jpeg;base64,xxxx 형식
+                        header, base64_data = canvas_image_data.split(",", 1)
+                    else:
+                        base64_data = canvas_image_data
 
-                # URL 공백 인코딩
-                from urllib.parse import quote, urlparse, urlunparse
-                parsed = urlparse(bg_url)
-                encoded_path = quote(parsed.path, safe='/')
-                bg_url = urlunparse(parsed._replace(path=encoded_path))
+                    image_bytes = base64.b64decode(base64_data)
 
-                # 이미지 다운로드
-                resp = httpx.get(bg_url, timeout=30.0)
-                resp.raise_for_status()
-                with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
-                    f.write(resp.content)
-                    local_bg_path = f.name
-                temp_files.append(local_bg_path)
+                    # 임시 파일로 저장
+                    with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
+                        f.write(image_bytes)
+                        thumbnail_image_path = f.name
+                    temp_files.append(thumbnail_image_path)
+                    logger.info(f"[Regenerate] Canvas 이미지 저장 완료: {thumbnail_image_path} ({len(image_bytes)} bytes)")
 
-                # 텍스트 박스 준비 (snake_case 또는 camelCase 둘 다 지원)
-                text_boxes = thumbnail_layout.get("text_boxes") or thumbnail_layout.get("textBoxes") or []
+                else:
+                    # Canvas 이미지 없으면 기존 FFmpeg 방식으로 생성
+                    logger.info("[Regenerate] Canvas 이미지 없음 - FFmpeg로 썸네일 생성")
+                    import httpx
 
-                # 범용 텍스트박스 기반 썸네일 생성 (ID 무관하게 위치/색상으로 렌더링)
-                thumbnail_gen = get_thumbnail_generator()
-                thumbnail_image_path = thumbnail_gen.generate_thumbnail_with_textboxes(
-                    background_image_path=local_bg_path,
-                    text_boxes=text_boxes,
-                    overlay_opacity=0.3,
-                    output_size=(1920, 1080)
-                )
-                temp_files.append(thumbnail_image_path)
-                logger.info(f"[Regenerate] 인트로 썸네일 이미지 생성 완료: {thumbnail_image_path}")
+                    # 배경 이미지 다운로드 (snake_case 또는 camelCase 둘 다 지원)
+                    bg_url = thumbnail_layout.get("background_image_url") or thumbnail_layout.get("backgroundImageUrl")
+                    if not bg_url:
+                        raise ValueError("Background image URL missing")
+
+                    # R2 URL 처리
+                    if not bg_url.startswith("http"):
+                        bg_url = f"{settings.R2_PUBLIC_URL}/{bg_url}"
+
+                    # URL 공백 인코딩
+                    from urllib.parse import quote, urlparse, urlunparse
+                    parsed = urlparse(bg_url)
+                    encoded_path = quote(parsed.path, safe='/')
+                    bg_url = urlunparse(parsed._replace(path=encoded_path))
+
+                    # 이미지 다운로드
+                    resp = httpx.get(bg_url, timeout=30.0)
+                    resp.raise_for_status()
+                    with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
+                        f.write(resp.content)
+                        local_bg_path = f.name
+                    temp_files.append(local_bg_path)
+
+                    # 텍스트 박스 준비 (snake_case 또는 camelCase 둘 다 지원)
+                    text_boxes = thumbnail_layout.get("text_boxes") or thumbnail_layout.get("textBoxes") or []
+
+                    # 범용 텍스트박스 기반 썸네일 생성 (ID 무관하게 위치/색상으로 렌더링)
+                    thumbnail_gen = get_thumbnail_generator()
+                    thumbnail_image_path = thumbnail_gen.generate_thumbnail_with_textboxes(
+                        background_image_path=local_bg_path,
+                        text_boxes=text_boxes,
+                        overlay_opacity=0.3,
+                        output_size=(1920, 1080)
+                    )
+                    temp_files.append(thumbnail_image_path)
+                    logger.info(f"[Regenerate] FFmpeg 인트로 썸네일 이미지 생성 완료: {thumbnail_image_path}")
 
             except Exception as e:
                 logger.warning(f"인트로 썸네일 생성 실패 (인트로 없이 진행): {e}")

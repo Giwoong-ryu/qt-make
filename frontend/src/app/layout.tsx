@@ -33,6 +33,11 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=Gaegu&family=Gamja+Flower&family=Gothic+A1:wght@400;700&family=Gowun+Batang&family=Gugi&family=Hahmlet:wght@400;700&family=Hi+Melody&family=IBM+Plex+Sans+KR:wght@400;700&family=Jua&family=Nanum+Brush+Script&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Poor+Story&display=swap"
           rel="stylesheet"
         />
+        {/* 나눔스퀘어라운드 폰트 (Naver CDN) */}
+        <link
+          href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css"
+          rel="stylesheet"
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

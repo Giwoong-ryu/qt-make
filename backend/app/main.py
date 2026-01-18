@@ -1266,10 +1266,11 @@ async def generate_qt_thumbnail_custom(request: QTThumbnailRequest):
         else:
             bg_path = downloaded_path
         
-        # FFmpeg 필터 구성
+        # FFmpeg 필터 구성 (cover 방식 - 프론트엔드 Canvas와 동일)
+        # force_original_aspect_ratio=increase + crop으로 화면을 완전히 채움
         filters = [
-            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black"
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height}"
         ]
         
         # 어두운 오버레이
@@ -1280,12 +1281,12 @@ async def generate_qt_thumbnail_custom(request: QTThumbnailRequest):
             )
         
         # 텍스트 박스들 추가
-        # Windows 한글 폰트 경로 설정 (FFmpeg에서 콜론은 \:로 이스케이프 필요)
+        # NanumGothicBold 폰트 사용 - Canvas 프론트엔드와 동일
         import platform
         if platform.system() == "Windows":
-            font_path = r"C\:/Windows/Fonts/malgun.ttf"  # 맑은 고딕
+            font_path = r"C\:/Windows/Fonts/NanumGothicBold.ttf"
         else:
-            font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"  # Linux
+            font_path = "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"  # Docker
 
         # 텍스트 파일들을 저장할 리스트 (나중에 정리용)
         text_files_to_cleanup = []
@@ -1310,11 +1311,15 @@ async def generate_qt_thumbnail_custom(request: QTThumbnailRequest):
             # 색상 변환
             ffmpeg_color = box.color.replace("#", "0x")
 
+            # 폰트 크기 (프론트엔드 값 그대로 사용 - 생성창과 동일하게)
+            scaled_fontsize = int(box.fontSize)
+            scaled_fontsize = max(scaled_fontsize, 20)  # 최소 크기
+
             # drawtext 필터 (textfile 사용으로 UTF-8 한글 지원)
             filters.append(
                 f"drawtext=textfile='{ffmpeg_text_path}':"
                 f"fontfile='{font_path}':"
-                f"fontsize={box.fontSize}:"
+                f"fontsize={scaled_fontsize}:"
                 f"fontcolor={ffmpeg_color}:"
                 f"borderw=2:bordercolor=black:"
                 f"shadowcolor=black@0.5:shadowx=2:shadowy=2:"
@@ -1377,6 +1382,64 @@ async def generate_qt_thumbnail_custom(request: QTThumbnailRequest):
     except Exception as e:
         logger.exception(f"QT 썸네일 생성 실패: {e}")
         raise HTTPException(status_code=500, detail=f"썸네일 생성에 실패했습니다: {str(e)}")
+
+
+class CanvasThumbnailRequest(BaseModel):
+    """Canvas에서 직접 생성한 썸네일 저장 요청"""
+    image_data: str  # data:image/jpeg;base64,... 형식
+
+
+@app.post("/api/videos/{video_id}/thumbnail/save-canvas")
+async def save_canvas_thumbnail(video_id: str, request: CanvasThumbnailRequest):
+    """
+    Canvas에서 직접 생성한 썸네일 이미지 저장
+
+    프론트엔드 Canvas에서 toDataURL()로 생성한 이미지를 그대로 저장합니다.
+    이렇게 하면 미리보기와 최종 결과가 100% 동일합니다.
+    """
+    import base64
+
+    try:
+        # base64 데이터 추출
+        if request.image_data.startswith('data:'):
+            # data:image/jpeg;base64,xxxx 형식에서 base64 부분만 추출
+            header, base64_data = request.image_data.split(',', 1)
+        else:
+            base64_data = request.image_data
+
+        # base64 디코딩
+        image_bytes = base64.b64decode(base64_data)
+
+        # 비디오 정보 조회 (파일명 생성용)
+        video_result = supabase.table("videos").select("title").eq("id", video_id).execute()
+        video_title = video_result.data[0]["title"] if video_result.data else "thumbnail"
+
+        # 파일명 생성 (한글 제거, 특수문자 제거)
+        import re
+        safe_title = re.sub(r'[^\w\s-]', '', video_title)[:30]
+        filename = f"thumbnails/{video_id}_{safe_title}.jpg"
+
+        # R2에 업로드 (전역 r2 인스턴스 사용)
+        thumbnail_url = r2.upload_bytes(image_bytes, filename, content_type="image/jpeg")
+
+        logger.info(f"Canvas 썸네일 R2 업로드 완료: {thumbnail_url}")
+
+        # DB 업데이트
+        supabase.table("videos").update({
+            "thumbnail_url": thumbnail_url
+        }).eq("id", video_id).execute()
+
+        logger.info(f"Canvas 썸네일 DB 저장 완료: video_id={video_id}")
+
+        return {
+            "thumbnail_url": thumbnail_url,
+            "video_id": video_id,
+            "message": "Canvas 썸네일이 저장되었습니다."
+        }
+
+    except Exception as e:
+        logger.exception(f"Canvas 썸네일 저장 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"썸네일 저장에 실패했습니다: {str(e)}")
 
 
 @app.get("/api/churches/{church_id}/thumbnail-settings")
@@ -1672,6 +1735,7 @@ class RegenerateRequest(BaseModel):
     clip_ids: list[str] | None = None
     bgm_id: str | None = None
     bgm_volume: float | None = 0.12
+    canvas_image_data: str | None = None  # Canvas에서 export한 base64 이미지 (data:image/jpeg;base64,...)
 
 
 @app.post("/api/videos/{video_id}/regenerate")
@@ -1703,10 +1767,54 @@ async def regenerate_video(
         church_id=request.church_id,
         clip_ids=request.clip_ids,
         bgm_id=request.bgm_id,
-        bgm_volume=request.bgm_volume or 0.12
+        bgm_volume=request.bgm_volume or 0.12,
+        canvas_image_data=request.canvas_image_data  # Canvas에서 export한 이미지 (있으면 FFmpeg 썸네일 생성 스킵)
     )
 
     return {"task_id": str(task.id), "status": "processing"}
+
+
+# ============================================
+# 이미지 프록시 API (CORS 우회)
+# ============================================
+
+@app.get("/api/proxy/image")
+async def proxy_image(url: str = Query(..., description="이미지 URL")):
+    """외부 이미지를 프록시하여 CORS 문제 해결"""
+    try:
+        # URL 검증 (R2 또는 허용된 도메인만)
+        allowed_domains = [
+            "pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev",
+            "r2.dev",
+            settings.R2_PUBLIC_URL.replace("https://", "").replace("http://", "") if settings.R2_PUBLIC_URL else ""
+        ]
+
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if not any(domain in parsed.netloc for domain in allowed_domains if domain):
+            raise HTTPException(status_code=403, detail="허용되지 않은 도메인입니다")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=30.0)
+            response.raise_for_status()
+
+            # Content-Type 가져오기
+            content_type = response.headers.get("content-type", "image/jpeg")
+
+            return StreamingResponse(
+                iter([response.content]),
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=86400",  # 1일 캐시
+                    "Access-Control-Allow-Origin": "*"
+                }
+            )
+    except httpx.HTTPError as e:
+        logger.error(f"이미지 프록시 실패: {e}")
+        raise HTTPException(status_code=502, detail="이미지를 가져올 수 없습니다")
+    except Exception as e:
+        logger.error(f"이미지 프록시 오류: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

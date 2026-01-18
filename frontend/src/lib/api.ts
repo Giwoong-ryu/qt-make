@@ -342,13 +342,28 @@ export async function createVideoWithOptions(
  */
 export async function regenerateVideo(
   videoId: string,
-  options: Partial<VideoOptions>,
+  options: Partial<VideoOptions> & { canvasImageData?: string },
   churchId: string = "kkotdongsanchurch"
 ): Promise<{ task_id: string }> {
-  const response = await api.post(`/api/videos/${videoId}/regenerate`, {
-    ...options,
+  // canvasImageData를 snake_case로 변환 (백엔드 API 규격)
+  const { canvasImageData, ...restOptions } = options;
+
+  // 디버그: 전송되는 데이터 확인
+  console.log("[API regenerateVideo] 호출됨:");
+  console.log("  - videoId:", videoId);
+  console.log("  - canvasImageData:", canvasImageData ? `${canvasImageData.length} bytes (${canvasImageData.substring(0, 50)}...)` : "undefined");
+  console.log("  - churchId:", churchId);
+
+  const requestBody = {
+    ...restOptions,
     church_id: churchId,
-  });
+    canvas_image_data: canvasImageData,  // Canvas에서 export한 이미지 (있으면 FFmpeg 생성 스킵)
+  };
+
+  console.log("[API regenerateVideo] Request body keys:", Object.keys(requestBody));
+  console.log("[API regenerateVideo] canvas_image_data in body:", requestBody.canvas_image_data ? `${requestBody.canvas_image_data.length} bytes` : "undefined/null");
+
+  const response = await api.post(`/api/videos/${videoId}/regenerate`, requestBody);
   return response.data;
 }
 
@@ -516,6 +531,20 @@ export async function getThumbnailLayout(
   videoId: string
 ): Promise<{ video_id: string; layout: QTThumbnailLayout | null }> {
   const response = await api.get(`/api/videos/${videoId}/thumbnail-layout`);
+  return response.data;
+}
+
+/**
+ * Canvas에서 직접 생성한 썸네일 이미지 저장
+ * (Canvas toDataURL로 생성한 base64 이미지를 서버에 저장)
+ */
+export async function saveCanvasThumbnail(
+  videoId: string,
+  canvasImageData: string  // data:image/jpeg;base64,... 형식
+): Promise<{ thumbnail_url: string; video_id: string }> {
+  const response = await api.post(`/api/videos/${videoId}/thumbnail/save-canvas`, {
+    image_data: canvasImageData,
+  });
   return response.data;
 }
 
