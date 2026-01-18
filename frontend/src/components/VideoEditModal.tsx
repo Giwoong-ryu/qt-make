@@ -369,10 +369,13 @@ export default function VideoEditModal({
 
     setRegenerating(true);
     try {
-      // 1. 자막 저장 (선택 사항이지만 안전하게)
+      // 1. 수정 내용을 자동으로 사전에 저장 (새로운 영상에도 적용되도록)
+      await detectAndSaveReplacements(video.church_id);
+
+      // 2. 자막 저장
       await updateSubtitles(videoId, subtitles, video.church_id);
 
-      // 2. 재생성 요청 (Canvas 이미지 포함)
+      // 3. 재생성 요청 (Canvas 이미지 포함)
       console.log("[Regenerate] API 호출 - canvas_image_data:", imageDataToUse ? `${imageDataToUse.length} bytes` : "undefined");
       await regenerateVideo(videoId, { canvasImageData: imageDataToUse || undefined }, video.church_id);
 
