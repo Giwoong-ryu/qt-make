@@ -1,0 +1,80 @@
+rules:
+  - id: correction-after-srt-generation
+    pattern-either:
+      - pattern: |
+          $SRT_PATH = $WHISPER.transcribe_to_srt(...)
+          ...
+          $CORRECTION_SERVICE.apply_replacement_dictionary($SRT_CONTENT, ...)
+      - pattern: |
+          $SRT_CONTENT = $_.read()
+          ...
+          $CORRECTION_SERVICE.apply_replacement_dictionary($SRT_CONTENT, ...)
+    message: |
+      [DATA FLOW ERROR] Correction AFTER SRT generation
+
+      Problem: Trying to correct text after SRT file is already created
+      Result: words array already split, correction cannot be applied
+
+      Fix:
+      1. whisper.get_transcription() - get raw text first
+      2. Apply correction to raw text
+      3. Create SRT from corrected text
+
+      Example:
+        transcription = whisper.get_transcription(audio_path)
+        corrected_text, applied = correction_service.apply_replacement_dictionary(
+            transcription.text, dictionary
+        )
+        transcription.text = corrected_text
+        # REQUIRED: Update words array too!
+        for i, word_data in enumerate(transcription.words):
+            word_data['word'] = corrected_words_list[i]
+        srt_path = whisper.create_srt_from_transcription(transcription, audio_path)
+    severity: ERROR
+    languages: [python]
+
+  - id: transcription-text-without-words-update
+    pattern-either:
+      - pattern: |
+          $TRANSCRIPTION.text = $CORRECTED_TEXT
+      - pattern: |
+          $OBJ.text = $NEW_TEXT
+    pattern-not: |
+      $TRANSCRIPTION.text = $CORRECTED_TEXT
+      ...
+      $TRANSCRIPTION.words
+    message: |
+      [DATA FLOW ERROR] Updated transcription.text but NOT words array
+
+      Problem: Only .text attribute updated, .words array unchanged
+      Result: _convert_to_srt() uses .words, so correction ignored
+
+      Fix: Update words array too
+
+      Example:
+        transcription.text = corrected_text
+
+        # REQUIRED: Update words array
+        if hasattr(transcription, 'words') and transcription.words:
+            corrected_words_list = corrected_text.split()
+            for i, word_data in enumerate(transcription.words):
+                if i < len(corrected_words_list):
+                    word_data['word'] = corrected_words_list[i]
+    severity: WARNING
+    languages: [python]
+
+  - id: srt-modification-after-generation
+    pattern: |
+      with open($SRT_PATH, "w", ...) as $F:
+          $F.write($SRT_CONTENT)
+      ...
+      $SRT_CONTENT = $CORRECTION_SERVICE.apply_replacement_dictionary($SRT_CONTENT, ...)
+    message: |
+      [LOGIC ERROR] Correction AFTER SRT file saved
+
+      Problem: File already saved before correction
+      Result: Corrected content not written to file
+
+      Fix: Change order - correction first, then save
+    severity: ERROR
+    languages: [python]

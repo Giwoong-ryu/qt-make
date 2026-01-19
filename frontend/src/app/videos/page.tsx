@@ -11,6 +11,7 @@ import {
   Trash2,
   Search,
   Filter,
+  X,
 } from "lucide-react";
 import { DashboardLayout, VideoEditModal } from "@/components";
 import { getVideos, deleteVideo } from "@/lib/api";
@@ -35,6 +36,8 @@ export default function VideosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 영상 목록 로드
   const loadVideos = useCallback(async () => {
@@ -56,7 +59,7 @@ export default function VideosPage() {
     }
   }, [loadVideos, isAuthenticated]);
 
-  // 영상 삭제
+  // 영상 삭제 (단일)
   const handleDeleteVideo = useCallback(async (videoId: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
     try {
@@ -67,12 +70,75 @@ export default function VideosPage() {
     }
   }, [loadVideos, churchId]);
 
+  // 체크박스 토글
+  const toggleVideoSelection = useCallback((videoId: string) => {
+    setSelectedVideoIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(videoId)) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
+  }, []);
+
   // 필터링된 영상 목록
   const filteredVideos = videos.filter((video) => {
     const matchesSearch = video.title?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     const matchesStatus = statusFilter === "all" || video.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // 전체 선택/해제
+  const toggleSelectAll = useCallback(() => {
+    if (selectedVideoIds.size === filteredVideos.length) {
+      setSelectedVideoIds(new Set());
+    } else {
+      setSelectedVideoIds(new Set(filteredVideos.map((v) => v.id)));
+    }
+  }, [filteredVideos, selectedVideoIds.size]);
+
+  // 일괄 삭제
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedVideoIds.size === 0) {
+      alert("삭제할 영상을 선택해주세요.");
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedVideoIds.size}개의 영상을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // API 호출
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/delete-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_ids: Array.from(selectedVideoIds),
+          church_id: churchId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "삭제 실패");
+      }
+
+      const result = await response.json();
+      alert(`${result.deleted_count}개 영상이 삭제되었습니다.`);
+
+      setSelectedVideoIds(new Set());
+      loadVideos();
+    } catch (error) {
+      console.error("Batch delete error:", error);
+      alert("일괄 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedVideoIds, churchId, loadVideos]);
 
   // 로딩 중
   if (authLoading) {
@@ -152,10 +218,44 @@ export default function VideosPage() {
             </div>
           </div>
 
+          {/* 일괄 삭제 버튼 */}
+          {selectedVideoIds.size > 0 && (
+            <div className="mb-4 flex items-center justify-between bg-accent/50 border border-border rounded-lg px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedVideoIds.size}개 선택됨
+                </span>
+                <button
+                  onClick={() => setSelectedVideoIds(new Set())}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  선택 해제
+                </button>
+              </div>
+              <button
+                onClick={handleBatchDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeleting ? "삭제 중..." : "선택 항목 삭제"}
+              </button>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-6 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={filteredVideos.length > 0 && selectedVideoIds.size === filteredVideos.length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                    />
+                  </th>
                   <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">상태</th>
                   <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">썸네일</th>
                   <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">파일명</th>
@@ -167,17 +267,25 @@ export default function VideosPage() {
               <tbody>
                 {loadingVideos ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">로딩 중...</td>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">로딩 중...</td>
                   </tr>
                 ) : filteredVideos.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
                       {searchQuery || statusFilter !== "all" ? "검색 결과가 없습니다." : "아직 생성된 영상이 없습니다."}
                     </td>
                   </tr>
                 ) : (
                   filteredVideos.map((video) => (
                     <tr key={video.id} className="border-b border-border hover:bg-accent/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedVideoIds.has(video.id)}
+                          onChange={() => toggleVideoSelection(video.id)}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${

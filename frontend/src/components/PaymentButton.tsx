@@ -29,8 +29,8 @@ export default function PaymentButton({
       // 포트원 SDK 동적 로드
       const PortOne = await import("@portone/browser-sdk/v2");
 
-      // REDIRECTION 모드: 페이지 이동 후 callback 페이지에서 처리
-      await PortOne.requestIssueBillingKey({
+      // PC: IFRAME (결과를 직접 받음), Mobile: REDIRECTION (callback 페이지로 이동)
+      const response = await PortOne.requestIssueBillingKey({
         storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
         channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
         billingKeyMethod: "EASY_PAY",
@@ -43,14 +43,46 @@ export default function PaymentButton({
           phoneNumber: "01012345678",
         },
         windowType: {
-          pc: "REDIRECTION",     // ✅ IFRAME → REDIRECTION 변경
-          mobile: "REDIRECTION",
+          pc: "IFRAME",          // ✅ PC: IFRAME (가장 안정적)
+          mobile: "REDIRECTION", // ✅ Mobile: REDIRECTION (callback으로 이동)
         },
-        redirectUrl: `${window.location.origin}/subscription/callback?customerId=${user.church_id}`, // ✅ customerId 추가
+        redirectUrl: `${window.location.origin}/subscription/callback?customerId=${user.church_id}`,
       });
 
-      // 이 줄 이후는 실행되지 않음 (페이지가 리다이렉트됨)
-      // 모든 후속 처리는 /subscription/callback 페이지에서 수행
+      // PC IFRAME 모드: 결과를 직접 받아서 처리
+      if (response && response.code === undefined) {
+        // 빌링키 발급 성공
+        const billingKey = response.billingKey;
+
+        // 백엔드에 빌링키 저장 및 구독 활성화
+        const backendResponse = await fetch("/api/subscription/activate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("qt_access_token")}`,
+          },
+          body: JSON.stringify({
+            billing_key: billingKey,
+            church_id: user.church_id,
+            tier: "basic",
+          }),
+        });
+
+        if (!backendResponse.ok) {
+          const errorData = await backendResponse.json().catch(() => ({}));
+          const errorMessage = errorData.detail || errorData.message || "빌링키 저장 실패";
+          console.error("Backend error:", errorData);
+          throw new Error(errorMessage);
+        }
+
+        const result = await backendResponse.json();
+        console.log("구독 활성화 성공:", result);
+        onSuccess?.();
+      } else if (response && response.code) {
+        // 에러 발생
+        throw new Error(response.message || "빌링키 발급 실패");
+      }
+      // Mobile REDIRECTION: 이 코드는 실행되지 않고 callback 페이지로 이동
     } catch (error) {
       console.error("결제 오류:", error);
       onError?.("결제 처리 중 오류가 발생했습니다.");

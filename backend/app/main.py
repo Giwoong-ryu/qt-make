@@ -24,6 +24,7 @@ from app.routers.stt import router as stt_router
 from app.routers.dictionary import router as dictionary_router
 from app.routers.replacement_dictionary import router as replacement_dictionary_router
 from app.routers.auth import router as auth_router
+from app.routers.subscription import router as subscription_router, webhook_router
 from supabase import create_client
 
 # 로깅 설정
@@ -98,6 +99,8 @@ app.include_router(auth_router)
 app.include_router(stt_router)
 app.include_router(dictionary_router)
 app.include_router(replacement_dictionary_router)
+app.include_router(subscription_router)
+app.include_router(webhook_router)
 
 
 @app.get("/")
@@ -483,6 +486,53 @@ async def delete_video(video_id: str, church_id: str = Query(...)):
     return {"status": "deleted", "video_id": video_id}
 
 
+class DeleteVideosRequest(BaseModel):
+    video_ids: list[str]
+    church_id: str
+
+
+@app.post("/api/videos/delete-batch")
+async def delete_videos_batch(request: DeleteVideosRequest):
+    """
+    영상 일괄 삭제
+
+    Args:
+        video_ids: 삭제할 영상 UUID 리스트
+        church_id: 교회 UUID (권한 확인용)
+    """
+    if not request.video_ids:
+        raise HTTPException(status_code=400, detail="삭제할 영상을 선택해주세요.")
+
+    # 권한 확인 - 모든 영상이 해당 교회 소속인지 확인
+    videos = supabase.table("videos") \
+        .select("id, church_id") \
+        .in_("id", request.video_ids) \
+        .execute()
+
+    if not videos.data:
+        raise HTTPException(status_code=404, detail="선택한 영상을 찾을 수 없습니다.")
+
+    # 권한 확인 - 다른 교회 영상이 포함되어 있는지 확인
+    unauthorized = [v for v in videos.data if v["church_id"] != request.church_id]
+    if unauthorized:
+        raise HTTPException(status_code=403, detail="삭제 권한이 없는 영상이 포함되어 있습니다.")
+
+    # 일괄 삭제
+    deleted_count = 0
+    for video_id in request.video_ids:
+        try:
+            supabase.table("videos").delete().eq("id", video_id).execute()
+            deleted_count += 1
+        except Exception as e:
+            logger.error(f"Failed to delete video {video_id}: {e}")
+
+    return {
+        "status": "success",
+        "deleted_count": deleted_count,
+        "total_requested": len(request.video_ids)
+    }
+
+
 @app.get("/api/videos/{video_id}/download")
 async def download_video_file(
     video_id: str,
@@ -523,15 +573,19 @@ async def download_video_file(
     if not file_url:
         raise HTTPException(status_code=404, detail=f"{file_type} 파일이 없습니다.")
     
-    # 파일명 생성
+    # 파일명 생성 (한글 포함)
     title = video_data.get("title") or video_id
-    # 파일명에서 특수문자 제거 (ASCII만 남김)
-    safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
+    # Windows에서 금지된 파일명 문자만 제거: \ / : * ? " < > |
+    forbidden_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
+    safe_title = "".join('_' if c in forbidden_chars else c for c in title)
     filename = f"{safe_title}.{extension}"
-    
-    # URL 인코딩 (한글 파일명 지원, RFC 5987)
+
+    # RFC 5987/RFC 8187 호환 인코딩 (한글 파일명 지원)
     from urllib.parse import quote
-    encoded_filename = quote(filename)
+    # 1) filename: ASCII 전용 (구버전 브라우저용)
+    ascii_filename = filename.encode('ascii', errors='ignore').decode('ascii') or "video.mp4"
+    # 2) filename*: UTF-8 인코딩 (최신 브라우저용)
+    encoded_filename = quote(filename.encode('utf-8'))
     
     try:
         # 외부 URL에서 파일 스트리밍
@@ -545,7 +599,8 @@ async def download_video_file(
                 iter([response.content]),
                 media_type=content_type,
                 headers={
-                    "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+                    # RFC 5987/RFC 8187: 양쪽 모두 제공 (브라우저 호환성)
+                    "Content-Disposition": f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}',
                     "Content-Length": str(len(response.content))
                 }
             )

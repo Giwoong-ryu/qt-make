@@ -27,8 +27,12 @@ class Settings(BaseSettings):
     # Groq API
     GROQ_API_KEY: str = ""
 
-    # Google Gemini API (STT 교정용)
-    GOOGLE_API_KEY: str = ""  # Gemini 2.5 Flash
+    # Google Gemini API (STT 교정용 + 감정 분석 + Vision 검증)
+    GOOGLE_API_KEY: str = ""  # Gemini 2.5 Flash-Lite
+    GEMINI_API_KEY: str = ""  # Alias for Google API Key
+
+    # Pexels API (배경 영상 검색)
+    PEXELS_API_KEY: str = ""  # Free tier: 200 requests/hour
 
     # Cloudflare R2
     R2_ACCOUNT_ID: str = ""

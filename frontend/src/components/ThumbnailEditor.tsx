@@ -636,6 +636,10 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
                 if (layout.textBoxes) {
                     setTextBoxes(layout.textBoxes);
                 }
+                if (layout.backgroundImageUrl) {
+                    setBackgroundImageUrl(layout.backgroundImageUrl);
+                    onBackgroundChange?.(layout.backgroundImageUrl);
+                }
                 if (layout.introSettings) {
                     setLocalIntroSettings(layout.introSettings);
                     onIntroSettingsChange?.(layout.introSettings);
@@ -648,7 +652,7 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
         } else {
             alert('저장된 기본 템플릿이 없습니다.');
         }
-    }, [onIntroSettingsChange]);
+    }, [onIntroSettingsChange, onChangeBackground]);
 
     // Canvas에서 이미지를 export하는 함수 (선택 박스 표시 제거 버전)
     const exportCanvasImage = useCallback((): string | null => {

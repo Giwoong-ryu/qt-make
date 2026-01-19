@@ -19,10 +19,10 @@ class WhisperService:
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.model = "whisper-large-v3-turbo"  # $0.04/hour
 
-    # 자막 설정 (Netflix 한국어 자막 가이드라인 기준 - 더 짧게 조정)
+    # 자막 설정 (Netflix 한국어 자막 가이드라인 기준)
     # 참조: docs/KOREAN_SUBTITLE_SEGMENTATION_GUIDE.md
-    MAX_CHARS_PER_LINE = 12  # 한 줄 최대 글자 수 (짧은 자막을 위해 감소)
-    MAX_CHARS_PER_SUBTITLE = 24  # 자막 블록 최대 글자 수 (2줄 x 12자)
+    MAX_CHARS_PER_LINE = 16  # 한 줄 최대 글자 수 (Netflix 한국어 기준)
+    MAX_CHARS_PER_SUBTITLE = 32  # 자막 블록 최대 글자 수 (2줄 x 16자)
     MIN_DURATION = 0.83  # 자막 최소 표시 시간 (초) - Netflix 기준 5/6초
     MAX_DURATION = 5.0  # 자막 최대 표시 시간 (초) - 더 짧게 (7초→5초)
     MIN_GAP_FRAMES = 2  # 자막 간 최소 간격 (프레임) @ 30fps = 약 67ms
@@ -111,22 +111,23 @@ class WhisperService:
         '고 있',   # "하고 있다", "보고 있어"
     )
 
-    def transcribe_to_srt(
+    def get_transcription(
         self,
         audio_path: str,
         language: str = "ko",
         initial_prompt: str | None = None
-    ) -> str:
+    ):
         """
-        MP3 → SRT 자막 파일 생성
+        Whisper API 호출 → raw transcription 객체 반환
+        (교정을 먼저 적용하기 위해 SRT 생성과 분리)
 
         Args:
-            audio_path: MP3 파일 경로
+            audio_path: 오디오 파일 경로
             language: 언어 코드 (ko, en, etc)
-            initial_prompt: Whisper 힌트 (교회별 용어, 최대 224토큰)
+            initial_prompt: Whisper 힌트
 
         Returns:
-            srt_path: 생성된 SRT 파일 경로
+            transcription: Groq Whisper API 응답 객체 (verbose_json)
         """
         try:
             logger.info(f"Transcribing audio: {audio_path}")
@@ -154,6 +155,28 @@ class WhisperService:
                     prompt=prompt  # 도메인 특화 힌트
                 )
 
+            return transcription
+
+        except Exception as e:
+            logger.exception(f"Transcription failed: {e}")
+            raise
+
+    def create_srt_from_transcription(
+        self,
+        transcription,
+        audio_path: str
+    ) -> str:
+        """
+        교정된 transcription 객체 → SRT 파일 생성
+
+        Args:
+            transcription: Whisper API 응답 (교정 후)
+            audio_path: 오디오 파일 경로 (SRT 저장 경로 결정용)
+
+        Returns:
+            srt_path: 생성된 SRT 파일 경로
+        """
+        try:
             # SRT 형식으로 변환 (적절한 길이로 분할)
             srt_content = self._convert_to_srt(transcription)
 
@@ -167,8 +190,28 @@ class WhisperService:
             return srt_path
 
         except Exception as e:
-            logger.exception(f"Transcription failed: {e}")
+            logger.exception(f"SRT creation failed: {e}")
             raise
+
+    def transcribe_to_srt(
+        self,
+        audio_path: str,
+        language: str = "ko",
+        initial_prompt: str | None = None
+    ) -> str:
+        """
+        MP3 → SRT 자막 파일 생성 (기존 호환성 유지)
+
+        Args:
+            audio_path: MP3 파일 경로
+            language: 언어 코드 (ko, en, etc)
+            initial_prompt: Whisper 힌트 (교회별 용어, 최대 224토큰)
+
+        Returns:
+            srt_path: 생성된 SRT 파일 경로
+        """
+        transcription = self.get_transcription(audio_path, language, initial_prompt)
+        return self.create_srt_from_transcription(transcription, audio_path)
 
     def _convert_to_srt(self, transcription) -> str:
         """
@@ -601,6 +644,7 @@ class WhisperService:
         3. 조사/어미가 분리되지 않도록 공백 기준 분할
         4. 공백 없는 한국어는 중간에서 분리
         """
+        logger.info(f"[DEBUG 2줄 분할] 입력: '{text[:30]}...'")  # 🔴 디버그 로그
         text = text.strip()
 
         # 16자 이하면 1줄로 유지 (불필요한 줄바꿈 방지)
@@ -620,19 +664,21 @@ class WhisperService:
 
             return line1 + "\n" + line2
 
-        # 공백 있는 경우 - 균등 분할 시도 (보조 용언 고려)
+        # 공백 있는 경우 - 문맥 기반 분할 (한국어 종결어미 우선)
         words = text.split(' ')
 
         if len(words) == 1:
             return text
 
-        # 최적의 분할 지점 찾기 (각 줄이 16자 이내가 되도록)
+        # 최적의 분할 지점 찾기 (우선순위 순서)
+        # 1순위: 종결어미 뒤 + 16자 이내
+        # 2순위: 균등 분할 + 보조 용언 회피
         best_split = len(words) // 2
         best_diff = float('inf')
+        best_score = -1  # 높을수록 좋음
 
         for i in range(1, len(words)):
             # 보조 용언 패턴 검사 (분리하면 안 되는 지점)
-            # "할 수", "볼 수" 같은 패턴을 감지
             should_skip = False
             if i < len(words):
                 # 분할 지점 앞뒤 2단어 확인
@@ -657,8 +703,30 @@ class WhisperService:
 
             # 두 줄 모두 16자 이내인 경우만 고려
             if len(line1) <= self.MAX_CHARS_PER_LINE and len(line2) <= self.MAX_CHARS_PER_LINE:
+                # 점수 계산 (높을수록 좋음)
+                score = 0
+
+                # 1순위: line2가 종결어미로 끝나는가? (가장 중요!)
+                # → 한국어 자연스러운 패턴: 두 번째 줄이 완전한 문장으로 끝남
+                # 예: "말씀으로" / "좋은 아침입니다."
+                line2_words = line2.split()
+                if line2_words:
+                    last_word_line2 = line2_words[-1]
+                    # 구두점 제거 후 종결어미 검사 (쉼표, 마침표 등이 종결어미 뒤에 붙는 경우 대응)
+                    last_word_clean = last_word_line2.rstrip(',.!?…')
+                    for ending in self.KOREAN_SENTENCE_ENDINGS:
+                        if last_word_clean.endswith(ending) and len(last_word_clean) > len(ending):
+                            logger.info(f"[DEBUG] line2 종결어미 발견: '{line2}' (점수 +100)")
+                            score += 100  # 종결어미 발견 시 큰 보너스
+                            break
+
+                # 2순위: 균등 분할 (글자수 차이가 적을수록 좋음)
                 diff = abs(len(line1) - len(line2))
-                if diff < best_diff:
+                score += (20 - diff)  # 차이가 0이면 +20, 10이면 +10
+
+                # 최고 점수 갱신
+                if score > best_score or (score == best_score and diff < best_diff):
+                    best_score = score
                     best_diff = diff
                     best_split = i
 
@@ -670,6 +738,7 @@ class WhisperService:
             mid = len(text) // 2
             return text[:mid].strip() + "\n" + text[mid:].strip()
 
+        logger.info(f"[DEBUG 분할 결과] line1: '{line1}' / line2: '{line2}'")  # 🔴
         return line1 + "\n" + line2
 
     @staticmethod

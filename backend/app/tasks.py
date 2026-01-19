@@ -70,7 +70,7 @@ def process_video_task(
 
     try:
         # ========================================
-        # Step 1: 음성 → 자막 (10%)
+        # Step 1: 음성 → Whisper raw transcription (10%)
         # ========================================
         self.update_state(
             state="PROCESSING",
@@ -78,13 +78,12 @@ def process_video_task(
         )
 
         whisper = get_whisper_service()
-        srt_path = whisper.transcribe_to_srt(audio_file_path, language="ko")
-        temp_files.append(srt_path)
+        transcription = whisper.get_transcription(audio_file_path, language="ko")
 
-        logger.info(f"[Step 1/5] SRT 생성 완료: {srt_path}")
+        logger.info(f"[Step 1/5] Whisper 인식 완료")
 
         # ========================================
-        # Step 1.5: 이중 사전 적용 (통합 + 교회별)
+        # Step 1.5: 이중 사전 적용 (Whisper raw text에 먼저 적용!)
         # ========================================
         self.update_state(
             state="PROCESSING",
@@ -94,9 +93,8 @@ def process_video_task(
         try:
             correction_service = get_correction_service()
 
-            # SRT 파일 읽기
-            with open(srt_path, "r", encoding="utf-8") as f:
-                srt_content = f.read()
+            # Whisper raw text 추출
+            raw_text = transcription.text if hasattr(transcription, 'text') else ""
 
             total_applied = []
 
@@ -117,13 +115,38 @@ def process_video_task(
                     for e in global_dict_result.data
                 ]
 
-                srt_content, global_applied = correction_service.apply_replacement_dictionary(
-                    srt_content, global_entries
+                # 🔴 DEBUG: 실제로 받은 데이터 확인
+                logger.info(f"[DEBUG] 통합 사전 데이터 개수: {len(global_entries)}")
+                logger.info(f"[DEBUG] 통합 사전 항목: {[e['original'] for e in global_entries]}")
+
+                # ✅ 핵심: raw text에 먼저 교정 적용!
+                corrected_text, global_applied = correction_service.apply_replacement_dictionary(
+                    raw_text, global_entries
                 )
 
                 if global_applied:
                     total_applied.extend([f"[통합]{a}" for a in global_applied])
                     logger.info(f"[Step 1.5a] 통합 사전 적용: {len(global_applied)}개 교정")
+                    logger.info(f"[DEBUG] 교정 전: {raw_text[:100]}...")
+                    logger.info(f"[DEBUG] 교정 후: {corrected_text[:100]}...")
+
+                    # ✅ 핵심: transcription.text 뿐만 아니라 words도 업데이트!
+                    transcription.text = corrected_text
+
+                    # words 배열의 각 단어도 교정 적용
+                    if hasattr(transcription, 'words') and transcription.words:
+                        # 교정된 전체 텍스트로 words 재생성
+                        # 방법: 원본 words의 타임스탬프는 유지하되, text만 교정본으로 교체
+                        corrected_word_index = 0
+                        corrected_words_list = corrected_text.split()
+
+                        for i, word_data in enumerate(transcription.words):
+                            if corrected_word_index < len(corrected_words_list):
+                                # 교정된 단어로 교체 (타임스탬프는 유지)
+                                word_data['word'] = corrected_words_list[corrected_word_index]
+                                corrected_word_index += 1
+            else:
+                corrected_text = raw_text
 
             # ----------------------------------------
             # 2단계: 교회별 사전 적용 (우선 - 덮어쓰기)
@@ -136,26 +159,42 @@ def process_video_task(
                 .execute()
 
             if church_dict_result.data:
-                srt_content, church_applied = correction_service.apply_replacement_dictionary(
-                    srt_content, church_dict_result.data
+                corrected_text, church_applied = correction_service.apply_replacement_dictionary(
+                    corrected_text, church_dict_result.data
                 )
 
                 if church_applied:
                     total_applied.extend([f"[교회]{a}" for a in church_applied])
                     logger.info(f"[Step 1.5b] 교회별 사전 적용: {len(church_applied)}개 교정")
 
-            # ----------------------------------------
-            # 교정된 SRT 저장
-            # ----------------------------------------
+                    # 교정된 텍스트를 transcription에 반영
+                    transcription.text = corrected_text
+
+                    # words 배열도 업데이트
+                    if hasattr(transcription, 'words') and transcription.words:
+                        corrected_word_index = 0
+                        corrected_words_list = corrected_text.split()
+
+                        for i, word_data in enumerate(transcription.words):
+                            if corrected_word_index < len(corrected_words_list):
+                                word_data['word'] = corrected_words_list[corrected_word_index]
+                                corrected_word_index += 1
+
             if total_applied:
-                with open(srt_path, "w", encoding="utf-8") as f:
-                    f.write(srt_content)
                 logger.info(f"[Step 1.5] 총 {len(total_applied)}개 교정 완료")
             else:
                 logger.info(f"[Step 1.5] 교정 없음 (church_id: {church_id})")
 
         except Exception as e:
             logger.warning(f"치환 사전 적용 실패 (무시하고 진행): {e}")
+
+        # ========================================
+        # Step 1.6: 교정된 transcription → SRT 생성
+        # ========================================
+        srt_path = whisper.create_srt_from_transcription(transcription, audio_file_path)
+        temp_files.append(srt_path)
+
+        logger.info(f"[Step 1.6] 교정 후 SRT 생성 완료: {srt_path}")
 
         self.update_state(
             state="PROCESSING",
@@ -175,19 +214,102 @@ def process_video_task(
 
         clip_selector = get_clip_selector()
 
+        # ========================================
+        # Step 2.1: 자막 감정 분석 (NEW!)
+        # ========================================
+        mood_based_clips = []
+
+        try:
+            from app.services.mood_analyzer import get_mood_analyzer
+            from app.services.background_video_search import get_video_search
+            from collections import Counter
+
+            logger.info("[Step 2.1] 자막 감정 분석 시작")
+
+            mood_analyzer = get_mood_analyzer()
+            mood_data = mood_analyzer.analyze_srt(srt_path)
+
+            # 대표 감정 선택 (가장 많이 나온 emotion/subject 조합)
+            mood_keys = [(m.mood.emotion, m.mood.subject) for m in mood_data]
+            most_common = Counter(mood_keys).most_common(1)[0][0]
+            representative_mood = mood_data[0].mood  # 기본값
+
+            for segment in mood_data:
+                if (segment.mood.emotion, segment.mood.subject) == most_common:
+                    representative_mood = segment.mood
+                    break
+
+            logger.info(
+                f"[Step 2.1] 대표 감정: {representative_mood.emotion}/{representative_mood.subject}"
+            )
+
+            # ========================================
+            # Step 2.2: Pexels 검색 (50% duration)
+            # ========================================
+            pexels_duration = int(audio_duration * 0.5)
+
+            video_search = get_video_search()
+            pexels_videos = video_search.search_by_mood(
+                mood=representative_mood,
+                duration_needed=pexels_duration,
+                max_results=3
+            )
+
+            # Pexels 결과를 clips 형태로 변환
+            pexels_total_duration = 0
+            for pv in pexels_videos:
+                mood_based_clips.append({
+                    "id": f"pexels_{pv.id}",
+                    "file_path": pv.file_path,
+                    "category": "pexels_mood",
+                    "duration": pv.duration,
+                    "quality_score": pv.quality_score,
+                    "vision_verified": pv.vision_verified
+                })
+                pexels_total_duration += pv.duration
+
+            logger.info(
+                f"[Step 2.2] Pexels 검색 완료: {len(pexels_videos)}개, "
+                f"총 {pexels_total_duration}초"
+            )
+
+        except Exception as e:
+            logger.warning(f"감정 기반 검색 실패 (폴백: 기존 방식): {e}")
+            mood_based_clips = []
+            pexels_total_duration = 0
+
+        # ========================================
+        # Step 2.3: DB 클립 선택 (나머지 50%)
+        # ========================================
         # 템플릿에서 선택한 클립이 있으면 그것 사용, 없으면 자동 선택
         if clip_ids and len(clip_ids) > 0:
-            logger.info(f"[Step 2/5] 템플릿 클립 사용: {len(clip_ids)}개")
-            selected_clips = clip_selector.get_clips_by_ids(
+            logger.info(f"[Step 2.3] 템플릿 클립 사용: {len(clip_ids)}개")
+            db_clips = clip_selector.get_clips_by_ids(
                 clip_ids=clip_ids,
                 audio_duration=audio_duration
             )
         else:
-            logger.info(f"[Step 2/5] 자동 클립 선택 (pack_id: {pack_id})")
-            selected_clips = clip_selector.select_clips(
-                audio_duration=audio_duration,
+            # Pexels로 커버한 duration을 빼고 나머지만 DB에서 선택
+            remaining_duration = max(0, audio_duration - pexels_total_duration)
+
+            logger.info(f"[Step 2.3] DB 클립 자동 선택 (pack_id: {pack_id}, duration: {remaining_duration}초)")
+            db_clips = clip_selector.select_clips(
+                audio_duration=remaining_duration,
                 pack_id=pack_id
             )
+
+        # ========================================
+        # Step 2.4: Pexels + DB 클립 혼합
+        # ========================================
+        import random
+
+        selected_clips = mood_based_clips + db_clips
+        random.shuffle(selected_clips)  # 랜덤 셔플로 자연스러운 전환
+
+        logger.info(
+            f"[Step 2.4] 클립 혼합 완료: Pexels {len(mood_based_clips)}개 + DB {len(db_clips)}개 "
+            f"= 총 {len(selected_clips)}개"
+        )
 
         clip_paths = [clip["file_path"] for clip in selected_clips]
         used_clip_ids = [clip["id"] for clip in selected_clips]
