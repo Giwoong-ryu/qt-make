@@ -16,9 +16,44 @@ from app.services.stt import get_whisper_service
 from app.services.stt_correction import get_correction_service
 from app.services.video import get_video_composer
 from app.services.thumbnail import get_thumbnail_generator
+from app.services.fixed_segment_analyzer import get_fixed_segment_analyzer
+from app.services.video_clip_selector import get_clip_selector as get_new_clip_selector
+from app.services.video_compositor import get_compositor
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def parse_srt_for_segments(srt_path: str):
+    """SRT 파일에서 자막 텍스트와 타이밍 추출"""
+    import re
+
+    subtitles = []
+    subtitle_timings = []
+
+    with open(srt_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # SRT 형식: 번호\n시작 --> 끝\n텍스트\n\n
+    pattern = r'(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n(.*?)(?=\n\n|\Z)'
+    matches = re.findall(pattern, content, re.DOTALL)
+
+    for match in matches:
+        index, start_time, end_time, text = match
+
+        # 시간을 초 단위로 변환
+        def time_to_seconds(time_str):
+            h, m, s = time_str.split(':')
+            s, ms = s.split(',')
+            return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+
+        start_sec = time_to_seconds(start_time)
+        end_sec = time_to_seconds(end_time)
+
+        subtitles.append(text.strip())
+        subtitle_timings.append((start_sec, end_sec))
+
+    return subtitles, subtitle_timings
 
 
 class CallbackTask(Task):
@@ -42,7 +77,8 @@ def process_video_task(
     pack_id: str = "pack-free",
     clip_ids: list[str] | None = None,
     bgm_id: str | None = None,
-    bgm_volume: float = 0.12
+    bgm_volume: float = 0.12,
+    generation_mode: str = "natural"  # "default" or "natural"
 ):
     """
     QT 영상 생성 메인 파이프라인
@@ -202,128 +238,88 @@ def process_video_task(
         )
 
         # ========================================
-        # Step 2: 배경 클립 선택 (20%)
+        # Step 2: 구간 분석 + 영상 선택 (Segment-Based Strategy)
         # ========================================
         self.update_state(
             state="PROCESSING",
-            meta={"progress": 25, "step": "배경 영상 선택 중..."}
+            meta={"progress": 25, "step": "자막 구간 분석 중..."}
         )
 
+        # 오디오 길이 계산
         video_composer = get_video_composer()
         audio_duration = video_composer.get_audio_duration(audio_file_path)
 
-        clip_selector = get_clip_selector()
+        # BGM 다운로드 (옵션)
+        bgm_file_path = None
+        if bgm_id:
+            bgm_res = supabase.table("bgms").select("file_path").eq("id", bgm_id).single().execute()
+            if bgm_res.data:
+                bgm_url = bgm_res.data["file_path"]
+                if not bgm_url.startswith("http"):
+                    bgm_url = f"{settings.R2_PUBLIC_URL}/{bgm_url}"
 
-        # ========================================
-        # Step 2.1: 자막 감정 분석 (NEW!)
-        # ========================================
-        mood_based_clips = []
+                import httpx
+                import tempfile as tf
+                with tf.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+                    resp = httpx.get(bgm_url, timeout=30.0)
+                    f.write(resp.content)
+                    bgm_file_path = f.name
+                    temp_files.append(bgm_file_path)
+                logger.info(f"[Step 2.0] BGM 다운로드 완료: {bgm_id}")
 
-        try:
-            from app.services.mood_analyzer import get_mood_analyzer
-            from app.services.background_video_search import get_video_search
-            from collections import Counter
+        # Step 2.1: SRT에서 자막 추출
+        logger.info("[Step 2.1] SRT 파싱 시작")
+        subtitles, subtitle_timings = parse_srt_for_segments(srt_path)
+        logger.info(f"[Step 2.1] 자막 파싱 완료: {len(subtitles)}개")
 
-            logger.info("[Step 2.1] 자막 감정 분석 시작")
-
-            mood_analyzer = get_mood_analyzer()
-            mood_data = mood_analyzer.analyze_srt(srt_path)
-
-            # 대표 감정 선택 (가장 많이 나온 emotion/subject 조합)
-            mood_keys = [(m.mood.emotion, m.mood.subject) for m in mood_data]
-            most_common = Counter(mood_keys).most_common(1)[0][0]
-            representative_mood = mood_data[0].mood  # 기본값
-
-            for segment in mood_data:
-                if (segment.mood.emotion, segment.mood.subject) == most_common:
-                    representative_mood = segment.mood
-                    break
-
-            logger.info(
-                f"[Step 2.1] 대표 감정: {representative_mood.emotion}/{representative_mood.subject}"
-            )
-
-            # ========================================
-            # Step 2.2: Pexels 검색 (50% duration)
-            # ========================================
-            pexels_duration = int(audio_duration * 0.5)
-
-            video_search = get_video_search()
-            pexels_videos = video_search.search_by_mood(
-                mood=representative_mood,
-                duration_needed=pexels_duration,
-                max_results=3
-            )
-
-            # Pexels 결과를 clips 형태로 변환
-            pexels_total_duration = 0
-            for pv in pexels_videos:
-                mood_based_clips.append({
-                    "id": f"pexels_{pv.id}",
-                    "file_path": pv.file_path,
-                    "category": "pexels_mood",
-                    "duration": pv.duration,
-                    "quality_score": pv.quality_score,
-                    "vision_verified": pv.vision_verified
-                })
-                pexels_total_duration += pv.duration
-
-            logger.info(
-                f"[Step 2.2] Pexels 검색 완료: {len(pexels_videos)}개, "
-                f"총 {pexels_total_duration}초"
-            )
-
-        except Exception as e:
-            logger.warning(f"감정 기반 검색 실패 (폴백: 기존 방식): {e}")
-            mood_based_clips = []
-            pexels_total_duration = 0
-
-        # ========================================
-        # Step 2.3: DB 클립 선택 (나머지 50%)
-        # ========================================
-        # 템플릿에서 선택한 클립이 있으면 그것 사용, 없으면 자동 선택
-        if clip_ids and len(clip_ids) > 0:
-            logger.info(f"[Step 2.3] 템플릿 클립 사용: {len(clip_ids)}개")
-            db_clips = clip_selector.get_clips_by_ids(
-                clip_ids=clip_ids,
-                audio_duration=audio_duration
-            )
-        else:
-            # Pexels로 커버한 duration을 빼고 나머지만 DB에서 선택
-            remaining_duration = max(0, audio_duration - pexels_total_duration)
-
-            logger.info(f"[Step 2.3] DB 클립 자동 선택 (pack_id: {pack_id}, duration: {remaining_duration}초)")
-            db_clips = clip_selector.select_clips(
-                audio_duration=remaining_duration,
-                pack_id=pack_id
-            )
-
-        # ========================================
-        # Step 2.4: Pexels + DB 클립 혼합
-        # ========================================
-        import random
-
-        selected_clips = mood_based_clips + db_clips
-        random.shuffle(selected_clips)  # 랜덤 셔플로 자연스러운 전환
-
-        logger.info(
-            f"[Step 2.4] 클립 혼합 완료: Pexels {len(mood_based_clips)}개 + DB {len(db_clips)}개 "
-            f"= 총 {len(selected_clips)}개"
+        # Step 2.2: 구간 분석 (도입/중간/마무리)
+        self.update_state(
+            state="PROCESSING",
+            meta={"progress": 28, "step": "도입/중간/마무리 구간 분석 중..."}
         )
 
-        clip_paths = [clip["file_path"] for clip in selected_clips]
-        used_clip_ids = [clip["id"] for clip in selected_clips]
-        clip_durations = [clip.get("duration", 30) for clip in selected_clips]
-
-        total_clip_duration = sum(clip_durations)
-        logger.info(
-            f"[Step 2/5] 클립 선택 완료: {len(clip_paths)}개, "
-            f"총 클립 길이: {total_clip_duration}초, 오디오 길이: {audio_duration}초"
+        segment_analyzer = get_fixed_segment_analyzer()
+        segments = segment_analyzer.analyze_segments(
+            subtitles=subtitles,
+            subtitle_timings=subtitle_timings
         )
+
+        logger.info(f"[Step 2.2] 구간 분석 완료: {len(segments)}개 구간")
+        for i, seg in enumerate(segments):
+            logger.info(
+                f"  구간 {i+1}: {seg.segment_type} ({seg.start_time:.1f}s ~ {seg.end_time:.1f}s) "
+                f"- {seg.strategy}, confidence={seg.confidence:.2f}"
+            )
+
+        # Step 2.3: 구간별 영상 선택 (Pexels API)
+        self.update_state(
+            state="PROCESSING",
+            meta={"progress": 32, "step": "구간별 배경 영상 검색 중..."}
+        )
+
+        clip_selector_new = get_new_clip_selector()
+        selected_clips = clip_selector_new.select_clips(segments)
+
+        logger.info(f"[Step 2.3] 영상 선택 완료: {len(selected_clips)}개")
+        for i, clip in enumerate(selected_clips):
+            trim_info = f"trim to {clip.trim_duration:.1f}s" if clip.needs_trim else "no trim"
+            multi_info = f"+ {len(clip.additional_videos)} more" if clip.is_multi_video else ""
+            logger.info(
+                f"  클립 {i+1}: {clip.segment.segment_type} - {clip.segment.strategy} "
+                f"({trim_info}) {multi_info}"
+            )
+
+        # used_clip_ids 생성 (VideoCompositor에서 사용할 video ID 리스트)
+        used_clip_ids = []
+        for clip in selected_clips:
+            used_clip_ids.append(f"pexels_{clip.video.id}")
+            if clip.additional_videos:
+                for vid in clip.additional_videos:
+                    used_clip_ids.append(f"pexels_{vid.id}")
 
         self.update_state(
             state="PROCESSING",
-            meta={"progress": 30, "step": f"{len(clip_paths)}개 클립 선택됨"}
+            meta={"progress": 35, "step": f"{len(selected_clips)}개 구간별 클립 선택됨"}
         )
 
         # ========================================
@@ -335,161 +331,194 @@ def process_video_task(
         )
 
         # 썸네일 레이아웃 조회 (인트로/아웃트로 사용 여부 확인)
+        # generation_mode 무관하게 항상 인트로/아웃트로 사용 가능
         thumbnail_layout = None
         use_thumbnail_intro = False
         intro_duration = 2.0
         use_outro = False
         outro_duration = 3.0
-
-        try:
-            video_record = supabase.table("videos").select(
-                "thumbnail_layout, title"
-            ).eq("id", video_id).single().execute()
-
-            if video_record.data and video_record.data.get("thumbnail_layout"):
-                thumbnail_layout = video_record.data["thumbnail_layout"]
-                intro_settings = thumbnail_layout.get("intro_settings", {})
-                use_thumbnail_intro = intro_settings.get("useAsIntro", False)
-                intro_duration = intro_settings.get("introDuration", 2.0)
-                # 아웃트로 사용 여부
-                use_outro = intro_settings.get("useAsOutro", False)
-                outro_duration = intro_settings.get("outroDuration", 3.0)
-
-                logger.info(f"[Step 3] 썸네일 레이아웃 발견 - 인트로: {use_thumbnail_intro}, 아웃트로: {use_outro}")
-        except Exception as e:
-            logger.warning(f"썸네일 레이아웃 조회 실패 (무시하고 진행): {e}")
-
-        # 썸네일 인트로 사용 시 이미지 생성
         thumbnail_image_path = None
-        if use_thumbnail_intro and thumbnail_layout:
-            try:
-                self.update_state(
-                    state="PROCESSING",
-                    meta={"progress": 38, "step": "인트로 썸네일 생성 중..."}
-                )
-
-                thumbnail_gen = get_thumbnail_generator()
-                text_boxes = thumbnail_layout.get("text_boxes", [])
-
-                # 배경 이미지 URL 가져오기
-                background_url = thumbnail_layout.get("background_image_url", "")
-
-                if background_url:
-                    # 원격 URL인 경우 임시 다운로드
-                    import httpx
-                    import tempfile as tf
-
-                    if background_url.startswith("http"):
-                        # URL 공백 인코딩
-                        from urllib.parse import quote, urlparse, urlunparse
-                        parsed = urlparse(background_url)
-                        encoded_path = quote(parsed.path, safe='/')
-                        background_url = urlunparse(parsed._replace(path=encoded_path))
-
-                        response = httpx.get(background_url, timeout=30.0)
-                        response.raise_for_status()
-
-                        # 임시 파일로 저장
-                        with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
-                            f.write(response.content)
-                            local_bg_path = f.name
-                        temp_files.append(local_bg_path)
-                    else:
-                        local_bg_path = background_url
-
-                    # 범용 텍스트박스 기반 썸네일 생성 (ID 무관하게 위치/색상으로 렌더링)
-                    thumbnail_image_path = thumbnail_gen.generate_thumbnail_with_textboxes(
-                        background_image_path=local_bg_path,
-                        text_boxes=text_boxes,
-                        overlay_opacity=0.3,
-                        output_size=(1920, 1080)
-                    )
-                    temp_files.append(thumbnail_image_path)
-                    logger.info(f"[Step 3] 인트로 썸네일 이미지 생성 완료: {thumbnail_image_path}")
-                else:
-                    logger.warning("[Step 3] 배경 이미지 URL 없음 - 인트로 생략")
-                    use_thumbnail_intro = False
-
-            except Exception as e:
-                logger.warning(f"인트로 썸네일 생성 실패 (인트로 없이 진행): {e}")
-                use_thumbnail_intro = False
-                thumbnail_image_path = None
-
-        # 아웃트로 이미지 생성 (인트로와 같은 배경, 텍스트 없이)
         outro_image_path = None
-        if use_outro and thumbnail_layout:
+
+        # 썸네일 레이아웃이 있으면 항상 사용
+        if True:  # generation_mode와 무관
             try:
-                self.update_state(
-                    state="PROCESSING",
-                    meta={"progress": 42, "step": "아웃트로 이미지 생성 중..."}
-                )
-
-                # 배경 이미지 다운로드 (인트로와 동일한 배경 사용)
-                background_url = thumbnail_layout.get("background_image_url", "")
-
-                if background_url:
-                    import httpx
-                    import tempfile as tf
-
-                    # 이미 다운로드한 로컬 파일이 있으면 재사용
-                    if 'local_bg_path' not in locals():
+                video_record = supabase.table("videos").select(
+                    "thumbnail_layout, title"
+                ).eq("id", video_id).single().execute()
+    
+                if video_record.data and video_record.data.get("thumbnail_layout"):
+                    thumbnail_layout = video_record.data["thumbnail_layout"]
+                    intro_settings = thumbnail_layout.get("intro_settings", {})
+                    use_thumbnail_intro = intro_settings.get("useAsIntro", False)
+                    intro_duration = intro_settings.get("introDuration", 2.0)
+                    # 아웃트로 사용 여부
+                    use_outro = intro_settings.get("useAsOutro", False)
+                    outro_duration = intro_settings.get("outroDuration", 3.0)
+    
+                    logger.info(f"[Step 3] 썸네일 레이아웃 발견 - 인트로: {use_thumbnail_intro}, 아웃트로: {use_outro}")
+            except Exception as e:
+                logger.warning(f"썸네일 레이아웃 조회 실패 (무시하고 진행): {e}")
+    
+            # 썸네일 인트로 사용 시 이미지 생성
+            thumbnail_image_path = None
+            if use_thumbnail_intro and thumbnail_layout:
+                try:
+                    self.update_state(
+                        state="PROCESSING",
+                        meta={"progress": 38, "step": "인트로 썸네일 생성 중..."}
+                    )
+    
+                    thumbnail_gen = get_thumbnail_generator()
+                    text_boxes = thumbnail_layout.get("text_boxes", [])
+    
+                    # 배경 이미지 URL 가져오기
+                    background_url = thumbnail_layout.get("background_image_url", "")
+    
+                    if background_url:
+                        # 원격 URL인 경우 임시 다운로드
+                        import httpx
+                        import tempfile as tf
+    
                         if background_url.startswith("http"):
+                            # URL 공백 인코딩
                             from urllib.parse import quote, urlparse, urlunparse
                             parsed = urlparse(background_url)
                             encoded_path = quote(parsed.path, safe='/')
                             background_url = urlunparse(parsed._replace(path=encoded_path))
-
+    
                             response = httpx.get(background_url, timeout=30.0)
                             response.raise_for_status()
-
+    
+                            # 임시 파일로 저장
                             with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
                                 f.write(response.content)
                                 local_bg_path = f.name
                             temp_files.append(local_bg_path)
                         else:
                             local_bg_path = background_url
-
-                    # 아웃트로 이미지 생성 (텍스트 없이 배경만)
-                    thumbnail_gen = get_thumbnail_generator()
-                    outro_image_path = thumbnail_gen.generate_outro_image(
-                        background_image_path=local_bg_path,
-                        overlay_opacity=0.3,
-                        output_size=(1920, 1080)
+    
+                        # 범용 텍스트박스 기반 썸네일 생성 (ID 무관하게 위치/색상으로 렌더링)
+                        thumbnail_image_path = thumbnail_gen.generate_thumbnail_with_textboxes(
+                            background_image_path=local_bg_path,
+                            text_boxes=text_boxes,
+                            overlay_opacity=0.3,
+                            output_size=(1920, 1080)
+                        )
+                        temp_files.append(thumbnail_image_path)
+                        logger.info(f"[Step 3] 인트로 썸네일 이미지 생성 완료: {thumbnail_image_path}")
+                    else:
+                        logger.warning("[Step 3] 배경 이미지 URL 없음 - 인트로 생략")
+                        use_thumbnail_intro = False
+    
+                except Exception as e:
+                    logger.warning(f"인트로 썸네일 생성 실패 (인트로 없이 진행): {e}")
+                    use_thumbnail_intro = False
+                    thumbnail_image_path = None
+    
+            # 아웃트로 이미지 생성 (인트로와 같은 배경, 텍스트 없이)
+            outro_image_path = None
+            if use_outro and thumbnail_layout:
+                try:
+                    self.update_state(
+                        state="PROCESSING",
+                        meta={"progress": 42, "step": "아웃트로 이미지 생성 중..."}
                     )
-                    temp_files.append(outro_image_path)
-                    logger.info(f"[Step 3] 아웃트로 이미지 생성 완료: {outro_image_path}")
-                else:
-                    logger.warning("[Step 3] 배경 이미지 URL 없음 - 아웃트로 생략")
+    
+                    # 배경 이미지 다운로드 (인트로와 동일한 배경 사용)
+                    background_url = thumbnail_layout.get("background_image_url", "")
+    
+                    if background_url:
+                        import httpx
+                        import tempfile as tf
+    
+                        # 이미 다운로드한 로컬 파일이 있으면 재사용
+                        if 'local_bg_path' not in locals():
+                            if background_url.startswith("http"):
+                                from urllib.parse import quote, urlparse, urlunparse
+                                parsed = urlparse(background_url)
+                                encoded_path = quote(parsed.path, safe='/')
+                                background_url = urlunparse(parsed._replace(path=encoded_path))
+    
+                                response = httpx.get(background_url, timeout=30.0)
+                                response.raise_for_status()
+    
+                                with tf.NamedTemporaryFile(delete=False, suffix=".jpg") as f:
+                                    f.write(response.content)
+                                    local_bg_path = f.name
+                                temp_files.append(local_bg_path)
+                            else:
+                                local_bg_path = background_url
+    
+                        # 아웃트로 이미지 생성 (텍스트 없이 배경만)
+                        thumbnail_gen = get_thumbnail_generator()
+                        outro_image_path = thumbnail_gen.generate_outro_image(
+                            background_image_path=local_bg_path,
+                            overlay_opacity=0.3,
+                            output_size=(1920, 1080)
+                        )
+                        temp_files.append(outro_image_path)
+                        logger.info(f"[Step 3] 아웃트로 이미지 생성 완료: {outro_image_path}")
+                    else:
+                        logger.warning("[Step 3] 배경 이미지 URL 없음 - 아웃트로 생략")
+                        use_outro = False
+    
+                except Exception as e:
+                    logger.warning(f"아웃트로 이미지 생성 실패 (아웃트로 없이 진행): {e}")
                     use_outro = False
+                    outro_image_path = None
+    
+        # VideoCompositor로 영상 합성 (통합 - 인트로/아웃트로 포함)
+        logger.info("[Step 3] VideoCompositor로 구간별 합성 시작")
+        compositor = get_compositor()
 
-            except Exception as e:
-                logger.warning(f"아웃트로 이미지 생성 실패 (아웃트로 없이 진행): {e}")
-                use_outro = False
-                outro_image_path = None
+        # 임시 출력 경로
+        import tempfile
+        temp_output_path = os.path.join(
+            tempfile.gettempdir(),
+            f"qt_composed_{video_id}.mp4"
+        )
 
-        # 영상 합성 (인트로/아웃트로 유무에 따라 분기)
-        if use_thumbnail_intro and thumbnail_image_path:
-            output_video_path = video_composer.compose_video_with_thumbnail(
-                clip_paths=clip_paths,
-                audio_path=audio_file_path,
-                srt_path=srt_path,
-                audio_duration=audio_duration,
-                thumbnail_path=thumbnail_image_path,
-                thumbnail_duration=intro_duration,
-                fade_duration=1.0,
-                clip_durations=clip_durations,
-                # 아웃트로 옵션
-                outro_image_path=outro_image_path if use_outro else None,
-                outro_duration=outro_duration
+        # 구간별 progress 업데이트를 위한 콜백
+        def progress_callback(current_segment, total_segments):
+            progress = 35 + int((current_segment / total_segments) * 30)  # 35% ~ 65%
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": progress, "step": f"구간 {current_segment}/{total_segments} 합성 중..."}
             )
-        else:
-            output_video_path = video_composer.compose_video(
-                clip_paths=clip_paths,
-                audio_path=audio_file_path,
-                srt_path=srt_path,
-                audio_duration=audio_duration,
-                clip_durations=clip_durations
-            )
+
+        # 합성 실행 (인트로/아웃트로 포함)
+        composition_result = compositor.compose_video(
+            selected_clips=selected_clips,
+            output_path=temp_output_path,
+            subtitle_path=srt_path,
+            audio_path=audio_file_path,
+            bgm_path=bgm_file_path,
+            bgm_volume=bgm_volume,
+            audio_duration=audio_duration,
+            thumbnail_path=thumbnail_image_path if use_thumbnail_intro else None,
+            thumbnail_duration=intro_duration,
+            fade_duration=1.0,
+            outro_path=outro_image_path if use_outro else None,
+            outro_duration=outro_duration,
+            progress_callback=progress_callback
+        )
+
+        output_video_path = composition_result.output_path
+
+        logger.info(
+            f"[Step 3] VideoCompositor 합성 완료: {composition_result.segments_count}개 구간, "
+            f"총 {composition_result.total_duration:.1f}초"
+        )
+
+        # 임시 파일 정리 (output_path 제외)
+        for temp_file in composition_result.temp_files:
+            if temp_file != composition_result.output_path:
+                try:
+                    os.unlink(temp_file)
+                except Exception as e:
+                    logger.warning(f"임시 파일 삭제 실패: {temp_file} - {e}")
+
         temp_files.append(output_video_path)
 
         logger.info(f"[Step 3/5] 영상 합성 완료: {output_video_path}")

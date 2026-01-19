@@ -9,6 +9,8 @@ import {
   Music,
   Film,
   FileAudio,
+  Layers,
+  ChevronDown,
 } from "lucide-react";
 import { DashboardLayout, ProgressCard } from "@/components";
 import { createVideoWithOptions, getTaskStatus } from "@/lib/api";
@@ -35,6 +37,7 @@ export default function UploadPage() {
   // 영상 옵션
   const [videoTitle, setVideoTitle] = useState("");
   const [bgmVolume, setBgmVolume] = useState(0.12);
+  const [generationMode, setGenerationMode] = useState<"default" | "natural">("natural"); // 기본설정 or 자연생성
 
   // Polling 관리
   const pollingIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -139,7 +142,8 @@ export default function UploadPage() {
         const options: VideoOptions = {
           title: videoTitle || uploadFile.name.replace(/\.[^/.]+$/, ""),
           bgmVolume: bgmVolume,
-          generateThumbnail: true,
+          generateThumbnail: generationMode === "default", // 기본설정만 썸네일 생성
+          generationMode: generationMode,
         };
 
         const response = await createVideoWithOptions(
@@ -288,7 +292,24 @@ export default function UploadPage() {
             </div>
 
             {/* 옵션 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  <Layers className="w-4 h-4 inline mr-1" />
+                  생성 방식
+                </label>
+                <div className="relative">
+                  <select
+                    value={generationMode}
+                    onChange={(e) => setGenerationMode(e.target.value as "default" | "natural")}
+                    className="w-full appearance-none px-4 py-2.5 pr-10 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  >
+                    <option value="natural">자연 생성 (권장)</option>
+                    <option value="default">기본 설정</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   <Film className="w-4 h-4 inline mr-1" />

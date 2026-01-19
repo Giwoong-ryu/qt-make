@@ -33,8 +33,8 @@ class FixedSegmentAnalyzer:
     """고정 구간 + 유연 구간 분석기"""
 
     # 고정 구간 길이 (초)
-    INTRO_DURATION = 15.0    # 처음 15초 (도입+성경)
-    CLOSING_DURATION = 15.0  # 마지막 15초 (마무리)
+    INTRO_DURATION = 20.0    # 처음 20초 (도입+성경)
+    CLOSING_DURATION = 20.0  # 마지막 20초 (마무리)
 
     def __init__(self):
         self.frequency_analyzer = get_emotion_analyzer()
@@ -94,22 +94,47 @@ class FixedSegmentAnalyzer:
         subtitle_timings: List[Tuple[float, float]],
         total_duration: float
     ) -> SegmentStrategy:
-        """처음 15초 분석 (고정: nature_calm)"""
-        intro_duration = min(self.INTRO_DURATION, total_duration * 0.15)
+        """
+        처음 구간 분석 (도입+성경 구절까지)
 
+        성경 구절이 끝나는 지점을 찾아서 거기까지를 고정 구간으로 설정
+        찾지 못하면 기본값 20초 사용
+        """
         # 템플릿 확인 (도입+성경 패턴)
         template_sections = self.template_analyzer.analyze(subtitles)
-        has_intro_pattern = any(
-            s.pattern_type in ["introduction", "scripture"]
-            for s in template_sections
+
+        # 성경 구절 섹션 찾기
+        scripture_section = next(
+            (s for s in template_sections if s.pattern_type == "scripture"),
+            None
         )
+
+        if scripture_section:
+            # 성경 구절이 끝나는 자막의 종료 시간
+            scripture_end_idx = scripture_section.end_idx
+            intro_end_time = subtitle_timings[scripture_end_idx][1]
+
+            logger.info(
+                f"성경 구절 발견: 자막 {scripture_section.start_idx}-{scripture_end_idx}번, "
+                f"종료 시간: {intro_end_time:.1f}초"
+            )
+
+            confidence = 0.95  # 성경 구절 감지 성공
+        else:
+            # 성경 구절 못 찾으면 기본값 20초
+            intro_end_time = min(self.INTRO_DURATION, total_duration * 0.20)
+            confidence = 0.8  # 기본값 사용
+
+            logger.warning(
+                f"성경 구절 미발견, 기본값 사용: {intro_end_time:.1f}초"
+            )
 
         return SegmentStrategy(
             start_time=0.0,
-            end_time=intro_duration,
+            end_time=intro_end_time,
             strategy="nature_calm",
             segment_type="fixed_intro",
-            confidence=0.95 if has_intro_pattern else 0.8
+            confidence=confidence
         )
 
     def _analyze_closing(
@@ -118,8 +143,8 @@ class FixedSegmentAnalyzer:
         subtitle_timings: List[Tuple[float, float]],
         total_duration: float
     ) -> SegmentStrategy:
-        """마지막 15초 분석 (고정: nature_bright 또는 nature_calm)"""
-        closing_duration = min(self.CLOSING_DURATION, total_duration * 0.15)
+        """마지막 20초 분석 (고정: nature_bright 또는 nature_calm)"""
+        closing_duration = min(self.CLOSING_DURATION, total_duration * 0.20)
         closing_start = total_duration - closing_duration
 
         # 마지막 자막들 확인

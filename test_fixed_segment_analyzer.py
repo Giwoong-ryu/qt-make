@@ -1,7 +1,7 @@
 """
 고정 구간 분석기 테스트 스크립트
 
-처음 15초 (도입) + 마지막 15초 (마무리) 고정
+처음 20초 (도입) + 마지막 20초 (마무리) 고정
 중간 구간은 빈도 분석 (랜덤성 강함)
 """
 # 테스트용 임포트 경로 설정
@@ -42,7 +42,7 @@ def test_fixed_segment_analyzer():
     analyzer = get_fixed_segment_analyzer()
 
     print("=" * 80)
-    print("고정 구간 분석 테스트 (처음 15s + 마지막 15s 고정)")
+    print("고정 구간 분석 테스트 (처음 20s + 마지막 20s 고정)")
     print("=" * 80)
 
     # 구간 분석
@@ -96,11 +96,11 @@ def test_fixed_segment_analyzer():
     first_segment = segments[0]
     last_segment = segments[-1]
 
-    print(f"\n첫 구간 (0-15초 기대):")
+    print(f"\n첫 구간 (0-20초 기대):")
     print(f"  실제: {first_segment.start_time:.1f}-{first_segment.end_time:.1f}초")
     print(f"  전략: {first_segment.strategy} ({'[OK] 통과' if first_segment.strategy == 'nature_calm' else '[FAIL] 실패'})")
 
-    print(f"\n마지막 구간 (105-120초 기대):")
+    print(f"\n마지막 구간 (100-120초 기대):")
     print(f"  실제: {last_segment.start_time:.1f}-{last_segment.end_time:.1f}초")
     print(f"  전략: {last_segment.strategy} ({'[OK] 통과' if last_segment.strategy in ['nature_bright', 'nature_calm'] else '[FAIL] 실패'})")
 

@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""  # Gemini 2.5 Flash-Lite
     GEMINI_API_KEY: str = ""  # Alias for Google API Key
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        # GEMINI_API_KEY가 비어있으면 GOOGLE_API_KEY를 사용
+        if not self.GEMINI_API_KEY and self.GOOGLE_API_KEY:
+            self.GEMINI_API_KEY = self.GOOGLE_API_KEY
+
     # Pexels API (배경 영상 검색)
     PEXELS_API_KEY: str = ""  # Free tier: 200 requests/hour
 

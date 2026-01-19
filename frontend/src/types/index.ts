@@ -32,6 +32,28 @@ export interface VideoResult {
   clips_used: string[];
 }
 
+// 썸네일 레이아웃 타입 (thumbnail_editor에서 사용)
+export interface ThumbnailLayout {
+  text_boxes: Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    fontSize: number;
+    fontWeight: string;
+    color: string;
+  }>;
+  background_image_url?: string;
+  intro_settings?: {
+    useAsIntro: boolean;
+    introDuration: number;
+    useAsOutro: boolean;
+    outroDuration: number;
+  };
+}
+
 // 영상 목록 아이템 (백엔드 main.py:261 반환 필드 매칭)
 export interface VideoItem {
   id: string;
@@ -44,6 +66,10 @@ export interface VideoItem {
   created_at: string;
   completed_at: string | null;
   error_message?: string | null;  // 실패 시 에러 메시지
+  thumbnail_layout?: ThumbnailLayout;  // 썸네일 레이아웃 (DB에 저장됨)
+  clips_used?: string[];  // 사용된 클립 ID 목록
+  bgm_id?: string | null;  // 사용된 BGM ID
+  bgm_volume?: number;  // BGM 볼륨 (0.0 ~ 1.0)
 }
 
 // 업로드 파일 상태
@@ -99,6 +125,7 @@ export interface VideoOptions {
   bgmId?: string;            // 선택된 BGM (없으면 기본값)
   bgmVolume?: number;        // BGM 볼륨 (0-1, 기본 0.12)
   generateThumbnail?: boolean; // 썸네일 생성 여부
+  generationMode?: "default" | "natural"; // 생성 방식 (기본설정 or 자연생성)
 }
 
 // 자막 세그먼트 (편집용)
@@ -118,6 +145,7 @@ export interface VideoDetail extends VideoItem {
   clips_used: string[];      // 사용된 클립 ID 목록
   bgm_id: string | null;
   bgm_volume: number;
+  thumbnail_layout?: ThumbnailLayout;  // 썸네일 레이아웃
   subtitles?: SubtitleSegment[];
 }
 
