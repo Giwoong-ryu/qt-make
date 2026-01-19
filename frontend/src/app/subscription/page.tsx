@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentButton from "@/components/PaymentButton";
+import TestPaymentButton from "@/components/TestPaymentButton";
 import UsageBar from "@/components/UsageBar";
 
 interface SubscriptionInfo {
@@ -256,11 +257,19 @@ export default function SubscriptionPage() {
                                 구독 취소
                             </button>
                         ) : (
-                            <PaymentButton
-                                onSuccess={handlePaymentSuccess}
-                                onError={handlePaymentError}
-                                className="w-full"
-                            />
+                            <div className="space-y-3">
+                                <PaymentButton
+                                    onSuccess={handlePaymentSuccess}
+                                    onError={handlePaymentError}
+                                    className="w-full"
+                                />
+                                {/* 개발 환경에서만 표시되는 테스트 버튼 */}
+                                <TestPaymentButton
+                                    onSuccess={handlePaymentSuccess}
+                                    onError={handlePaymentError}
+                                    className="w-full"
+                                />
+                            </div>
                         )}
                     </div>
                 </div>

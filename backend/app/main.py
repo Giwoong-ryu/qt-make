@@ -147,7 +147,8 @@ async def upload_videos(
     clip_ids: str | None = Form(default=None),
     bgm_id: str | None = Form(default=None),
     bgm_volume: str | None = Form(default=None),  # 문자열로 받음
-    generate_thumbnail: str | None = Form(default=None)  # 문자열로 받음
+    generate_thumbnail: str | None = Form(default=None),  # 문자열로 받음
+    generation_mode: str | None = Form(default="natural")  # 생성 방식: "default" or "natural"
 ):
     """
     MP3 파일 업로드 및 영상 생성 작업 큐 추가
@@ -255,7 +256,8 @@ async def upload_videos(
             actual_pack_id,
             parsed_clip_ids,  # 선택된 클립 ID 리스트
             bgm_id,           # BGM ID
-            parsed_bgm_volume # BGM 볼륨
+            parsed_bgm_volume, # BGM 볼륨
+            generation_mode   # 생성 방식
         )
     else:
         # 다중 파일: 배치 처리
@@ -265,7 +267,8 @@ async def upload_videos(
             actual_pack_id,
             parsed_clip_ids,  # 선택된 클립 ID 리스트
             bgm_id,           # BGM ID
-            parsed_bgm_volume # BGM 볼륨
+            parsed_bgm_volume, # BGM 볼륨
+            generation_mode   # 생성 방식
         )
 
     return {
@@ -358,7 +361,7 @@ async def list_videos(
         videos 리스트
     """
     result = supabase.table("videos") \
-        .select("id, title, status, duration, video_file_path, srt_file_path, thumbnail_url, created_at, completed_at, error_message") \
+        .select("id, title, status, duration, video_file_path, srt_file_path, thumbnail_url, created_at, completed_at, error_message, thumbnail_layout, clips_used, bgm_id, bgm_volume") \
         .eq("church_id", church_id) \
         .order("created_at", desc=True) \
         .range(offset, offset + limit - 1) \

@@ -31,7 +31,12 @@ class PortOneService:
         if self._access_token and self._token_expires_at:
             if datetime.now(timezone.utc) < self._token_expires_at:
                 return self._access_token
-        
+
+        # 디버깅: API Secret 확인
+        logger.info(f"[DEBUG] API Secret 길이: {len(self.api_secret) if self.api_secret else 0}")
+        logger.info(f"[DEBUG] API Secret 앞 20자: {self.api_secret[:20] if self.api_secret else 'None'}")
+        logger.info(f"[DEBUG] API Secret 뒤 20자: {self.api_secret[-20:] if self.api_secret else 'None'}")
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(

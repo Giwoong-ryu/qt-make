@@ -108,6 +108,33 @@ async def get_payment_history(church_id: str = Query(...), limit: int = Query(de
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class PaymentCancelRequest(BaseModel):
+    """결제 취소 요청"""
+    payment_id: str
+    reason: str = "고객 요청"
+
+
+@router.post("/cancel-payment")
+async def cancel_payment(request: PaymentCancelRequest):
+    """개별 결제 취소 (환불)"""
+    try:
+        portone_service = get_portone_service()
+        result = await portone_service.cancel_payment(
+            payment_id=request.payment_id,
+            reason=request.reason
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "환불 실패"))
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"결제 취소 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # 웹훅은 별도 라우터 (prefix 없이)
 webhook_router = APIRouter(prefix="/api/webhook", tags=["webhook"])
 
