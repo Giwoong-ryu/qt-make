@@ -1,0 +1,109 @@
+version: '3.8'
+
+# QT Video SaaS - Production Docker Compose
+# 프로덕션 배포용 설정 (볼륨 마운트 제거, 최적화 적용)
+
+services:
+  # Redis (Celery Broker)
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=production
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared_tmp:/tmp  # API와 Worker 공유 임시 파일
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    restart: always
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NODE_ENV=production
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared_tmp:/tmp  # API와 Worker 공유 임시 파일
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    restart: always
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app flower --port=5555 --basic_auth=${FLOWER_USER}:${FLOWER_PASSWORD}
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    env_file:
+      - .env.production
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:
+  shared_tmp:  # API와 Worker 공유 임시 파일 볼륨
