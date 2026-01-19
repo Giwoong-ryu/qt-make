@@ -16,6 +16,7 @@ export default function PaymentButton({
 }: PaymentButtonProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   const handleSubscribe = async () => {
     if (!user?.church_id) {
@@ -55,7 +56,7 @@ export default function PaymentButton({
         const billingKey = response.billingKey;
 
         // 백엔드에 빌링키 저장 및 구독 활성화
-        const backendResponse = await fetch("/api/subscription/activate", {
+        const backendResponse = await fetch(`${API_URL}/api/subscription/activate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

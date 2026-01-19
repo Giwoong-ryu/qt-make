@@ -10,6 +10,7 @@ export default function SubscriptionCallbackPage() {
   const { refreshUser } = useAuth();
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
   const [message, setMessage] = useState("결제 정보를 처리 중입니다...");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     const processCallback = async () => {
@@ -41,7 +42,7 @@ export default function SubscriptionCallbackPage() {
           throw new Error("교회 정보를 찾을 수 없습니다.");
         }
 
-        const response = await fetch("/api/subscription/activate", {
+        const response = await fetch(`${API_URL}/api/subscription/activate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
