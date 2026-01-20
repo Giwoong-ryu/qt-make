@@ -24,6 +24,10 @@ class UserProfile(BaseModel):
     church_id: str | None = None
     role: str = "member"
     is_active: bool = True
+    # 무료 플랜 정보
+    subscription_plan: str | None = "free"
+    weekly_credits: int | None = 10
+    weekly_credits_reset_at: str | None = None
 
 
 class AuthResult(BaseModel):
@@ -163,10 +167,10 @@ class AuthService:
             return False
 
     async def get_user_profile(self, user_id: str) -> UserProfile | None:
-        """사용자 프로필 조회"""
+        """사용자 프로필 조회 (크레딧 정보 포함)"""
         try:
             result = self.supabase.table("users").select(
-                "id, email, name, church_id, role, is_active"
+                "id, email, name, church_id, role, is_active, subscription_plan, weekly_credits, weekly_credits_reset_at"
             ).eq("id", user_id).execute()
 
             if result.data and len(result.data) > 0:

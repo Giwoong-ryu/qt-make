@@ -146,6 +146,134 @@ class PexelsVideoSearch:
         )
         return verified
 
+    def search_by_visual_description(
+        self,
+        visual_query: str,
+        duration_needed: int,
+        max_results: int = 5
+    ) -> List[PexelsVideo]:
+        """
+        Visual Description 기반 영상 검색 (Stage 3)
+
+        이 메서드는 LLM 감독이 생성한 시각적 묘사를 받아서
+        Pexels에서 영상을 검색합니다.
+
+        Args:
+            visual_query: LLM이 생성한 영어 시각 묘사
+                         예: "A woman looking anxious and jealous in an ancient palace,
+                              shadowy lighting, tense atmosphere, cinematic style"
+            duration_needed: 필요한 영상 길이 (초)
+            max_results: 반환할 영상 개수
+
+        Returns:
+            검증된 PexelsVideo 리스트
+        """
+        logger.info(f"[PexelsSearch] Visual query: {visual_query}")
+
+        # QT 묵상 영상 톤 조정: 어두움 70% / 밝음 30%
+        # 밝은 키워드 제거 및 어두운 톤 키워드 추가
+        dark_tone_keywords = [
+            "dark", "moody", "shadowy", "dim light", "soft light",
+            "contemplative", "solemn", "reverent", "subdued"
+        ]
+
+        # 밝은 키워드 탐지 (제거 대상)
+        bright_keywords = [
+            "bright", "sunny", "golden hour", "sunrise", "sunset",
+            "warm light", "cheerful", "vibrant"
+        ]
+
+        # 쿼리에서 밝은 키워드 제거
+        modified_query = visual_query
+        for bright_word in bright_keywords:
+            modified_query = modified_query.replace(bright_word, "")
+
+        # 어두운 톤 키워드 추가 (70% 확률)
+        import random
+        if random.random() < 0.7:  # 70% 확률로 어두운 톤 강제
+            dark_keyword = random.choice(dark_tone_keywords)
+            modified_query = f"{modified_query} {dark_keyword}"
+
+        logger.info(f"[PexelsSearch] Modified query (dark tone): {modified_query}")
+
+        # 1. Pexels 검색 (수정된 쿼리 사용)
+        try:
+            response = requests.get(
+                self.BASE_URL,
+                headers={"Authorization": self.pexels_key},
+                params={
+                    "query": modified_query,
+                    "per_page": 20,
+                    "orientation": "landscape"
+                },
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Pexels API error: {response.status_code}")
+                return []
+
+            data = response.json()
+            videos_data = data.get("videos", [])
+
+            if not videos_data:
+                logger.warning("No videos found for visual query")
+                return []
+
+            # PexelsVideo 객체 생성
+            candidates = []
+            for video_data in videos_data:
+                # HD 품질 파일 URL 찾기
+                video_files = video_data.get("video_files", [])
+                hd_file = None
+
+                for vf in video_files:
+                    if vf.get("quality") == "hd" and vf.get("width") == 1920:
+                        hd_file = vf
+                        break
+
+                if not hd_file:
+                    # HD 없으면 첫 번째 파일 사용
+                    hd_file = video_files[0] if video_files else None
+
+                if not hd_file:
+                    continue
+
+                # duration 필터링 (3초 이상만 - VideoCompositor가 반복 처리)
+                video_duration = video_data.get("duration", 0)
+                if video_duration < 3:
+                    continue
+
+                pexels_video = PexelsVideo(
+                    id=video_data["id"],
+                    url=video_data.get("url", ""),
+                    image_url=video_data.get("image", ""),
+                    duration=video_duration,
+                    width=hd_file.get("width", 1920),
+                    height=hd_file.get("height", 1080),
+                    file_path=hd_file.get("link", "")
+                )
+                candidates.append(pexels_video)
+
+        except Exception as e:
+            logger.error(f"Pexels search failed: {e}")
+            return []
+
+        # 2. Gemini Vision으로 썸네일 검증
+        verified = []
+        for video in candidates:
+            if len(verified) >= max_results:
+                break
+
+            is_safe = self._verify_with_gemini_vision(video.image_url)
+            if is_safe:
+                video.vision_verified = True
+                video.quality_score = 50  # 기본 점수
+                verified.append(video)
+
+        logger.info(f"[PexelsSearch] Verified {len(verified)}/{len(candidates)} videos")
+        return verified
+
     def _search_pexels(
         self,
         mood: Optional[MoodData],
@@ -266,29 +394,55 @@ class PexelsVideoSearch:
                 logger.warning(f"Failed to download thumbnail: {thumbnail_url}")
                 return False
 
-            # Gemini Vision 프롬프트
+            # Gemini Vision 프롬프트 (QT 묵상 영상 톤: 어두움 70% / 밝음 30%)
             prompt = """이 영상 썸네일을 분석해주세요.
 
 다음 중 하나라도 해당되면 "REJECT":
-- 사람의 얼굴 표정이 명확하게 보임 (표정 식별 가능)
-- 사람 얼굴이 화면 중앙에 크게 보임 (클로즈업)
+
+【사람 관련 REJECT】
+- 사람의 얼굴이 정면에서 보임 (눈, 코, 입 식별 가능)
+- 사람 얼굴이 화면 중앙/측면 어디든 크게 보임
+- 사람 얼굴 표정이 명확하게 보임
+- 사람이 손으로 물건을 조작하는 클로즈업 (예: 상자에서 물건 꺼내기)
+- **화질이 안 좋은 영상** (흐릿함, 노이즈, 저화질)
+
+【소품/제품 관련 REJECT】
+- 제품, 상자, 도구, 소품이 화면 중심
+- 브랜드명이나 로고가 보임 (예: "Kind" 같은 제품명)
+- 상업적 느낌의 촬영 (제품 광고, 언박싱 등)
+
+【빛/밝기 관련 REJECT - 최우선 차단!】
+- **강한 빛줄기나 광선이 보임** (light beam, sunbeam, ray of light)
+- **과도하게 밝고 강렬한 빛** (spotlight, 직사광선)
+- 햇살 가득한 화사한 분위기 (선명한 노란색/주황색 빛)
+- 과도하게 따뜻한 톤 (golden hour, sunrise/sunset의 강렬한 빛)
+- 밝고 활기찬 느낌 (묵상 분위기 부적합)
+
+【기타 REJECT】
 - 자동차, 오토바이, 기계류가 보임
 - 부적절한 콘텐츠
 
 다음은 "ACCEPT":
 - 풍경, 자연, 건축물이 메인
-- 사람은 있지만 표정이 보이지 않음:
-  * 뒷모습, 측면, 실루엣
+- **어둡고 묵직한 분위기** (dim light, soft shadows, subdued tones)
+- **차분하고 경건한 톤** (solemn, reverent, contemplative mood)
+- **고화질 영상** (선명하고 깨끗함)
+- 사람은 있지만 얼굴이 보이지 않음:
+  * 뒷모습, 실루엣
   * 멀리서 작게 보임 (배경)
-  * 후드나 모자로 얼굴 가려짐
-  * 고개를 숙여서 표정 안 보임
-- 인간의 신체 표현 (표정 제외):
+  * 후드나 모자로 얼굴 완전히 가려짐
+  * 고개를 깊이 숙여서 얼굴 안 보임
+- 인간의 신체 표현 (얼굴 제외):
   * 엎드린 모습 (기도, 절망)
   * 무릎 꿇은 자세 (회개, 탄원)
   * 두 손 마주잡음 (기도, 간구)
   * 웅크린 자세 (고통, 슬픔)
 - 사람 손, 발만 보임
-- 빛, 하늘, 물, 자연 요소 중심
+- 빛, 하늘, 물, 자연 요소 중심 (단, 어둡거나 중립적인 톤)
+
+**톤 우선순위**: 어두움(70%) > 밝음(30%)
+- 어두운 영상 우선 선택
+- 밝은 영상은 30% 이하만 허용
 
 응답: "ACCEPT" 또는 "REJECT" 한 단어만 출력"""
 

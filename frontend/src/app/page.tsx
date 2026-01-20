@@ -351,6 +351,40 @@ export default function Home() {
       </header>
 
       <div className="p-8 space-y-8">
+        {/* 무료 플랜 크레딧 표시 */}
+        {user?.subscription_plan === "free" && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  무료 플랜: 이번 주 <strong className="text-lg">{user?.weekly_credits || 0}개</strong> 남음
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  매주 월요일 0시에 10개로 충전됩니다
+                  {user?.weekly_credits_reset_at && (
+                    <span className="ml-2">
+                      (다음 충전: {new Date(user.weekly_credits_reset_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })})
+                    </span>
+                  )}
+                </p>
+              </div>
+              {(user?.weekly_credits || 0) === 0 && (
+                <button
+                  onClick={() => router.push("/subscription")}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  업그레이드
+                </button>
+              )}
+              {(user?.weekly_credits || 0) > 0 && (user?.weekly_credits || 0) <= 3 && (
+                <div className="text-xs text-red-600 dark:text-red-400 font-medium">
+                  ⚠️ 크레딧이 얼마 남지 않았어요!
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick Upload 섹션 - 전체 영역 클릭 가능 */}
         <section
           className="bg-card rounded-xl border-2 border-dashed border-border hover:border-primary/50 p-10 cursor-pointer transition-all hover:bg-accent/30"

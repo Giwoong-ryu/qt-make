@@ -18,7 +18,7 @@ from app.services.video import get_video_composer
 from app.services.thumbnail import get_thumbnail_generator
 from app.services.fixed_segment_analyzer import get_fixed_segment_analyzer
 from app.services.video_clip_selector import get_clip_selector as get_new_clip_selector
-from app.services.video_compositor import get_compositor
+from app.services.video_clip_processor import get_clip_processor
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -272,55 +272,250 @@ def process_video_task(
         subtitles, subtitle_timings = parse_srt_for_segments(srt_path)
         logger.info(f"[Step 2.1] 자막 파싱 완료: {len(subtitles)}개")
 
-        # Step 2.2: 구간 분석 (도입/중간/마무리)
-        self.update_state(
-            state="PROCESSING",
-            meta={"progress": 28, "step": "도입/중간/마무리 구간 분석 중..."}
-        )
+        # ========================================
+        # Step 2.2: 영상 클립 선택 전략 분기
+        # ========================================
+        # USE_SUBTITLE_BASED_CLIPS = True로 설정 시:
+        #   → 자막 기반 (3-Stage Pipeline: Cut → Visual Desc → Pexels)
+        # False 시:
+        #   → 기존 Segment 기반 (도입/중간/마무리)
+        # ========================================
+        USE_SUBTITLE_BASED_CLIPS = True  # ✅ 새로운 방식 활성화
 
-        segment_analyzer = get_fixed_segment_analyzer()
-        segments = segment_analyzer.analyze_segments(
-            subtitles=subtitles,
-            subtitle_timings=subtitle_timings
-        )
+        if USE_SUBTITLE_BASED_CLIPS:
+            # ============ 새로운 방식: Subtitle-Based Clips ============
+            logger.info("[Step 2.2] 🎬 3-Stage Pipeline: Subtitle-Based Clip Matching")
 
-        logger.info(f"[Step 2.2] 구간 분석 완료: {len(segments)}개 구간")
-        for i, seg in enumerate(segments):
-            logger.info(
-                f"  구간 {i+1}: {seg.segment_type} ({seg.start_time:.1f}s ~ {seg.end_time:.1f}s) "
-                f"- {seg.strategy}, confidence={seg.confidence:.2f}"
+            # Stage 1: LLM 기획자 - 컷 리스트 생성 (의미 단위로 자막 그룹핑)
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 28, "step": "📖 말씀의 흐름을 파악하고 있습니다..."}
             )
 
-        # Step 2.3: 구간별 영상 선택 (Pexels API)
-        self.update_state(
-            state="PROCESSING",
-            meta={"progress": 32, "step": "구간별 배경 영상 검색 중..."}
-        )
-
-        clip_selector_new = get_new_clip_selector()
-        selected_clips = clip_selector_new.select_clips(segments)
-
-        logger.info(f"[Step 2.3] 영상 선택 완료: {len(selected_clips)}개")
-        for i, clip in enumerate(selected_clips):
-            trim_info = f"trim to {clip.trim_duration:.1f}s" if clip.needs_trim else "no trim"
-            multi_info = f"+ {len(clip.additional_videos)} more" if clip.is_multi_video else ""
-            logger.info(
-                f"  클립 {i+1}: {clip.segment.segment_type} - {clip.segment.strategy} "
-                f"({trim_info}) {multi_info}"
+            from app.services.cut_list_generator import CutListGenerator
+            cut_generator = CutListGenerator()
+            cuts = cut_generator.generate_cuts(
+                subtitles=subtitles,
+                subtitle_timings=subtitle_timings,
+                min_duration=8.0,
+                max_duration=15.0,
+                target_cuts=11
             )
 
-        # used_clip_ids 생성 (VideoCompositor에서 사용할 video ID 리스트)
-        used_clip_ids = []
-        for clip in selected_clips:
-            used_clip_ids.append(f"pexels_{clip.video.id}")
-            if clip.additional_videos:
-                for vid in clip.additional_videos:
-                    used_clip_ids.append(f"pexels_{vid.id}")
+            logger.info(f"[Stage 1/3] 컷 생성 완료: {len(cuts)}개")
+            for cut in cuts:
+                logger.info(
+                    f"  Cut {cut.index+1}: {cut.start_time:.1f}s-{cut.end_time:.1f}s "
+                    f"({cut.duration:.1f}s) - {len(cut.subtitle_texts)} subtitles"
+                )
 
-        self.update_state(
-            state="PROCESSING",
-            meta={"progress": 35, "step": f"{len(selected_clips)}개 구간별 클립 선택됨"}
-        )
+            # Stage 2: LLM 감독 - Visual Description 생성
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 30, "step": f"🎨 {len(cuts)}개 구간에 어울리는 영상을 구상하고 있습니다..."}
+            )
+
+            from app.services.visual_description_generator import VisualDescriptionGenerator
+            desc_generator = VisualDescriptionGenerator()
+
+            visual_descriptions = []
+            for cut in cuts:
+                desc = desc_generator.generate_description(
+                    subtitle_texts=cut.subtitle_texts,
+                    context="documentary"
+                )
+                visual_descriptions.append(desc)
+
+                logger.info(
+                    f"  Cut {cut.index+1} Visual Query: {desc.visual_query[:80]}... "
+                    f"(type: {desc.description_type}, confidence: {desc.confidence:.2f})"
+                )
+
+            # Stage 3: Pexels 검색
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 32, "step": f"🔍 은혜로운 영상을 찾고 있습니다... ({len(cuts)}개 구간)"}
+            )
+
+            from app.services.background_video_search import PexelsVideoSearch
+            pexels_search = PexelsVideoSearch()
+
+            subtitle_clips = []  # 자막 기반 클립 리스트
+            used_video_ids = set()  # 중복 방지용 (같은 영상 4번 이상 반복 방지)
+
+            for idx, (cut, desc) in enumerate(zip(cuts, visual_descriptions)):
+                videos = pexels_search.search_by_visual_description(
+                    visual_query=desc.visual_query,
+                    duration_needed=int(cut.duration) + 1,
+                    max_results=5  # 3→5로 증가 (중복 제외 후 선택지 확보)
+                )
+
+                if videos:
+                    # 중복되지 않은 첫 번째 영상 선택
+                    selected_video = None
+                    for video in videos:
+                        if video.id not in used_video_ids:
+                            selected_video = video
+                            used_video_ids.add(video.id)
+                            break
+
+                    # 모든 영상이 이미 사용됨 → 첫 번째 결과 재사용 (로그 출력)
+                    if selected_video is None:
+                        selected_video = videos[0]
+                        logger.warning(
+                            f"  Cut {cut.index+1}: All videos already used, reusing Video ID {videos[0].id}"
+                        )
+
+                    subtitle_clips.append({
+                        'cut': cut,
+                        'description': desc,
+                        'video': selected_video
+                    })
+                    logger.info(
+                        f"  Cut {cut.index+1}: Video ID {selected_video.id} "
+                        f"({selected_video.duration}s, verified: {selected_video.vision_verified})"
+                    )
+                else:
+                    logger.warning(f"  Cut {cut.index+1}: No videos found (fallback to nature)")
+                    # Fallback 1: nature 영상 검색
+                    fallback = pexels_search.search_by_visual_description(
+                        visual_query="peaceful nature landscape calm serene cinematic",
+                        duration_needed=int(cut.duration) + 1,
+                        max_results=3  # 중복 회피 위해 3개 요청
+                    )
+                    if fallback:
+                        # 중복되지 않은 nature 영상 선택
+                        selected_fallback = None
+                        for video in fallback:
+                            if video.id not in used_video_ids:
+                                selected_fallback = video
+                                used_video_ids.add(video.id)
+                                break
+
+                        # 모든 nature 영상도 이미 사용됨 → 첫 번째 재사용
+                        if selected_fallback is None:
+                            selected_fallback = fallback[0]
+                            logger.warning(
+                                f"  Cut {cut.index+1}: Nature fallback also used, reusing ID {fallback[0].id}"
+                            )
+
+                        subtitle_clips.append({
+                            'cut': cut,
+                            'description': desc,
+                            'video': selected_fallback
+                        })
+                    else:
+                        # Fallback 2: 이전 cut의 영상 재사용 (최후의 수단)
+                        if subtitle_clips:
+                            prev_video = subtitle_clips[-1]['video']
+                            logger.warning(
+                                f"  Cut {cut.index+1}: Using previous video (ID {prev_video.id}) as final fallback"
+                            )
+                            subtitle_clips.append({
+                                'cut': cut,
+                                'description': desc,
+                                'video': prev_video
+                            })
+                            # 이전 영상 재사용은 used_video_ids에 추가 안 함 (의도적 중복)
+                        else:
+                            # 첫 번째 cut인데 실패 → 에러 (이건 거의 불가능)
+                            logger.error(f"  Cut {cut.index+1}: Failed to find any video (first cut)")
+                            raise ValueError(f"Failed to find video for first cut (index {cut.index})")
+
+            logger.info(f"[Stage 3/3] 영상 매칭 완료: {len(subtitle_clips)}개 컷")
+
+            # used_clip_ids 생성 (VideoCompositor에서 사용)
+            used_clip_ids = [f"pexels_{clip['video'].id}" for clip in subtitle_clips]
+
+            # subtitle_clips → selected_clips 형식 변환 (VideoCompositor 호환성)
+            from app.services.video_clip_selector import SelectedClip
+            from app.services.fixed_segment_analyzer import SegmentStrategy
+            selected_clips = []
+
+            for clip_data in subtitle_clips:
+                cut = clip_data['cut']
+                video = clip_data['video']
+
+                # SegmentStrategy 객체 생성 (Cut → SegmentStrategy 변환)
+                segment = SegmentStrategy(
+                    segment_type="subtitle_based",  # 새로운 타입
+                    start_time=cut.start_time,
+                    end_time=cut.end_time,
+                    strategy="visual_description",  # LLM 감독 모드
+                    confidence=clip_data['description'].confidence
+                )
+
+                # SelectedClip 객체 생성 (trim_duration만 지정, needs_trim은 property)
+                trim_dur = cut.duration if video.duration > cut.duration + 2 else None
+                selected_clip = SelectedClip(
+                    segment=segment,
+                    video=video,
+                    trim_duration=trim_dur,
+                    additional_videos=[]  # 단일 영상
+                )
+
+                selected_clips.append(selected_clip)
+
+            logger.info(f"[Stage 3/3] subtitle_clips → selected_clips 변환 완료")
+
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 35, "step": f"✅ 영상 준비가 완료되었습니다 ({len(subtitle_clips)}개 구간)"}
+            )
+
+        else:
+            # ============ 기존 방식: Segment-Based Clips ============
+            logger.info("[Step 2.2] 📊 Legacy: Segment-Based Clip Selection")
+
+            # Step 2.2: 구간 분석 (도입/중간/마무리)
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 28, "step": "도입/중간/마무리 구간 분석 중..."}
+            )
+
+            segment_analyzer = get_fixed_segment_analyzer()
+            segments = segment_analyzer.analyze_segments(
+                subtitles=subtitles,
+                subtitle_timings=subtitle_timings
+            )
+
+            logger.info(f"[Step 2.2] 구간 분석 완료: {len(segments)}개 구간")
+            for i, seg in enumerate(segments):
+                logger.info(
+                    f"  구간 {i+1}: {seg.segment_type} ({seg.start_time:.1f}s ~ {seg.end_time:.1f}s) "
+                    f"- {seg.strategy}, confidence={seg.confidence:.2f}"
+                )
+
+            # Step 2.3: 구간별 영상 선택 (Pexels API)
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 32, "step": "구간별 배경 영상 검색 중..."}
+            )
+
+            clip_selector_new = get_new_clip_selector()
+            selected_clips = clip_selector_new.select_clips(segments)
+
+            logger.info(f"[Step 2.3] 영상 선택 완료: {len(selected_clips)}개")
+            for i, clip in enumerate(selected_clips):
+                trim_info = f"trim to {clip.trim_duration:.1f}s" if clip.needs_trim else "no trim"
+                multi_info = f"+ {len(clip.additional_videos)} more" if clip.is_multi_video else ""
+                logger.info(
+                    f"  클립 {i+1}: {clip.segment.segment_type} - {clip.segment.strategy} "
+                    f"({trim_info}) {multi_info}"
+                )
+
+            # used_clip_ids 생성 (VideoCompositor에서 사용할 video ID 리스트)
+            used_clip_ids = []
+            for clip in selected_clips:
+                used_clip_ids.append(f"pexels_{clip.video.id}")
+                if clip.additional_videos:
+                    for vid in clip.additional_videos:
+                        used_clip_ids.append(f"pexels_{vid.id}")
+
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 35, "step": f"{len(selected_clips)}개 구간별 클립 선택됨"}
+            )
 
         # ========================================
         # Step 3: FFmpeg 영상 합성 (70%)
@@ -468,9 +663,9 @@ def process_video_task(
                     use_outro = False
                     outro_image_path = None
     
-        # VideoCompositor로 영상 합성 (통합 - 인트로/아웃트로 포함)
-        logger.info("[Step 3] VideoCompositor로 구간별 합성 시작")
-        compositor = get_compositor()
+        # VideoClipProcessor로 클립 전처리 (다운로드 + 구간별 처리)
+        logger.info("[Step 3] VideoClipProcessor로 클립 전처리 시작")
+        clip_processor = get_clip_processor()
 
         # 임시 출력 경로
         import tempfile
@@ -487,8 +682,8 @@ def process_video_task(
                 meta={"progress": progress, "step": f"구간 {current_segment}/{total_segments} 합성 중..."}
             )
 
-        # 합성 실행 (인트로/아웃트로 포함)
-        composition_result = compositor.compose_video(
+        # 클립 처리 실행 (다운로드 + 전처리 + 베이스 영상 생성)
+        composition_result = clip_processor.compose_video(
             selected_clips=selected_clips,
             output_path=temp_output_path,
             subtitle_path=srt_path,
@@ -841,8 +1036,24 @@ def regenerate_video_task(
                 base_video_path = f.name
                 temp_files.append(base_video_path)
 
+            # ✅ 베이스 영상의 실제 길이 측정 (FFprobe)
+            import subprocess
+            cmd_probe = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                base_video_path
+            ]
+            result = subprocess.run(cmd_probe, capture_output=True, text=True)
+            try:
+                base_video_duration = float(result.stdout.strip())
+                logger.info(f"[Regenerate] 베이스 영상 실제 길이: {base_video_duration}s (오디오: {audio_duration}s)")
+            except ValueError:
+                logger.warning("[Regenerate] 베이스 영상 길이 측정 실패 - 오디오 길이 사용")
+                base_video_duration = audio_duration
+
             clip_paths = [base_video_path]
-            clip_durations = [audio_duration]
+            clip_durations = [base_video_duration]  # ✅ 실제 측정값 사용
             logger.info(f"[Regenerate] 베이스 영상 다운로드 완료: {base_video_path}")
         else:
             # ❌ 베이스 영상 없으면 기존 방식 (클립 재처리)

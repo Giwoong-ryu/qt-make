@@ -13,6 +13,10 @@ export interface User {
   subscription_tier: "free" | "basic" | "premium";
   monthly_usage: number;
   usage_limit: number;
+  // 무료 플랜 크레딧 (주간)
+  subscription_plan?: "free" | "basic" | "pro" | "enterprise";
+  weekly_credits?: number;
+  weekly_credits_reset_at?: string;
 }
 
 // 교회 타입

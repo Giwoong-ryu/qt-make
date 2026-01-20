@@ -1,7 +1,7 @@
 """
-영상 합성기 (Video Compositor)
+영상 클립 처리기 (Video Clip Processor)
 
-선택된 클립들을 다운로드/처리 후 video.py에 위임
+선택된 클립들을 다운로드/전처리하여 베이스 영상 생성
 """
 import logging
 import subprocess
@@ -28,15 +28,15 @@ class CompositionResult:
     base_video_path: Optional[Path] = None  # 클립만 합친 베이스 영상 (인트로/아웃트로/자막 제외)  # 정리용
 
 
-class VideoCompositor:
+class VideoClipProcessor:
     """
-    영상 합성기
+    영상 클립 처리기
 
     처리 순서:
     1. Pexels 영상 다운로드
     2. 구간별 처리 (trim/loop/concat)
     3. 모든 구간 합치기
-    4. 자막 추가 (선택)
+    4. 베이스 영상 반환 (자막/BGM은 VideoComposer에서 처리)
     """
 
     def __init__(self, temp_dir: Optional[str] = None):
@@ -52,7 +52,7 @@ class VideoCompositor:
             self.temp_dir = Path(tempfile.gettempdir()) / "qt_video_compositor"
             self.temp_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"VideoCompositor initialized with temp_dir: {self.temp_dir}")
+        logger.info(f"VideoClipProcessor initialized with temp_dir: {self.temp_dir}")
 
         # FFmpeg 설치 확인
         self._check_ffmpeg()
@@ -97,7 +97,7 @@ class VideoCompositor:
         """
         선택된 클립들을 다운로드/처리 후 video.py에 위임
 
-        VideoCompositor의 역할:
+        VideoClipProcessor의 역할:
         - 클립 다운로드 및 구간별 처리
         - 처리된 클립들을 concat
 
@@ -126,9 +126,9 @@ class VideoCompositor:
         temp_files = []
 
         try:
-            logger.info(f"[VideoCompositor] Starting clip processing for {len(selected_clips)} segments")
+            logger.info(f"[VideoClipProcessor] Starting clip processing for {len(selected_clips)} segments")
 
-            # Step 1: 각 구간 처리 (VideoCompositor의 핵심 역할)
+            # Step 1: 각 구간 처리 (VideoClipProcessor의 핵심 역할)
             processed_segments = []
             total_duration = 0.0
 
@@ -150,11 +150,11 @@ class VideoCompositor:
                 total_duration += segment_duration
 
             # Step 2: 모든 구간 합치기 (concat만)
-            logger.info("[VideoCompositor] Concatenating all segments")
+            logger.info("[VideoClipProcessor] Concatenating all segments")
             base_video = self._concat_segments(processed_segments, temp_files)
 
             # Step 3: video.py에 나머지 작업 위임 (자막, 인트로, 아웃트로, 최종 합성)
-            logger.info("[VideoCompositor] Delegating to video.py for final composition")
+            logger.info("[VideoClipProcessor] Delegating to video.py for final composition")
             video_composer = get_video_composer()
 
             # 인트로가 있으면 compose_video_with_thumbnail, 없으면 compose_video
@@ -186,7 +186,7 @@ class VideoCompositor:
             # 최종 파일을 output_path로 복사
             import shutil
             shutil.copy2(final_output, output_path)
-            logger.info(f"[VideoCompositor] Final video saved to {output_path}")
+            logger.info(f"[VideoClipProcessor] Final video saved to {output_path}")
 
             return CompositionResult(
                 output_path=output_path,
@@ -297,6 +297,7 @@ class VideoCompositor:
             "ffmpeg", "-y",
             "-i", str(downloaded),
             "-t", str(clip.trim_duration),
+            "-vf", "fps=30,format=yuv420p",  # ✅ 프레임레이트 통일 (프리징 방지)
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질 (23→18)
             "-c:a", "aac", "-b:a", "192k",  # 오디오 품질 향상
             str(trimmed)
@@ -346,6 +347,7 @@ class VideoCompositor:
             "ffmpeg", "-y",
             "-stream_loop", str(loop_count),
             "-i", str(downloaded),
+            "-vf", "fps=30,format=yuv420p",  # ✅ 프레임레이트 통일 (프리징 방지)
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질
             "-c:a", "aac", "-b:a", "192k",
             str(looped)
@@ -400,6 +402,7 @@ class VideoCompositor:
             "-f", "concat",
             "-safe", "0",
             "-i", str(concat_list),
+            "-vf", "fps=30,format=yuv420p",  # ✅ 프레임레이트 통일 (프리징 방지)
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질
             "-c:a", "aac", "-b:a", "192k",
             str(concatenated)
@@ -444,7 +447,9 @@ class VideoCompositor:
             "-f", "concat",
             "-safe", "0",
             "-i", str(concat_list),
-            "-c", "copy",  # 복사 (재인코딩 X, 프리징 방지)
+            "-vf", "fps=30,format=yuv420p",  # ✅ 프레임레이트 통일 (프리징 방지)
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질
+            "-c:a", "aac", "-b:a", "192k",
             str(final_video)
         ]
 
@@ -518,6 +523,6 @@ class VideoCompositor:
         self._cleanup_temp_files(result.temp_files)
 
 
-def get_compositor(temp_dir: Optional[str] = None) -> VideoCompositor:
-    """VideoCompositor 팩토리 함수"""
-    return VideoCompositor(temp_dir=temp_dir)
+def get_clip_processor(temp_dir: Optional[str] = None) -> VideoClipProcessor:
+    """VideoClipProcessor 팩토리 함수"""
+    return VideoClipProcessor(temp_dir=temp_dir)

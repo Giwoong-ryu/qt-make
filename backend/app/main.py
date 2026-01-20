@@ -206,7 +206,8 @@ async def upload_videos(
     bgm_id: str | None = Form(default=None),
     bgm_volume: str | None = Form(default=None),  # 문자열로 받음
     generate_thumbnail: str | None = Form(default=None),  # 문자열로 받음
-    generation_mode: str | None = Form(default="natural")  # 생성 방식: "default" or "natural"
+    generation_mode: str | None = Form(default="natural"),  # 생성 방식: "default" or "natural"
+    authorization: str | None = Header(default=None)  # 인증 토큰
 ):
     """
     MP3 파일 업로드 및 영상 생성 작업 큐 추가
@@ -215,6 +216,7 @@ async def upload_videos(
         files: MP3 파일 리스트 (최대 7개)
         church_id: 교회 UUID
         pack_id: 배경팩 ID
+        authorization: Bearer 토큰 (무료 플랜 크레딧 체크)
 
     Returns:
         task_id: Celery 배치 작업 ID
@@ -236,6 +238,57 @@ async def upload_videos(
             status_code=400,
             detail="최소 1개 파일을 업로드해야 합니다."
         )
+
+    # ===== 크레딧 체크 (무료 플랜) =====
+    user_id = None
+    if authorization:
+        # Bearer 토큰 추출
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+
+            # JWT 토큰 검증
+            try:
+                from app.services.auth_service import AuthService
+                auth_service = AuthService()
+                user = await auth_service.verify_token(token)
+
+                if user:
+                    user_id = user.id
+
+                    # 사용자 플랜 정보 조회
+                    user_result = supabase.table("users").select(
+                        "subscription_plan, weekly_credits, weekly_credits_reset_at"
+                    ).eq("id", user_id).single().execute()
+
+                    user_data = user_result.data
+                    plan = user_data.get("subscription_plan", "free")
+                    weekly_credits = user_data.get("weekly_credits", 0)
+
+                    # 무료 플랜 크레딧 체크
+                    if plan == "free":
+                        required_credits = len(files)  # 파일 1개당 1 크레딧
+
+                        if weekly_credits < required_credits:
+                            raise HTTPException(
+                                status_code=402,
+                                detail=f"주간 무료 크레딧이 부족합니다. (필요: {required_credits}개, 보유: {weekly_credits}개)\n"
+                                       f"매주 월요일 0시에 10개로 충전됩니다."
+                            )
+
+                        # 크레딧 차감
+                        supabase.table("users").update({
+                            "weekly_credits": weekly_credits - required_credits
+                        }).eq("id", user_id).execute()
+
+                        logger.info(f"Credits deducted: user={user_id}, used={required_credits}, remaining={weekly_credits - required_credits}")
+
+                    # 유료 플랜 (basic, pro, enterprise)은 무제한 (추후 구현)
+
+            except Exception as e:
+                logger.warning(f"Auth token verification failed: {e}")
+                # 토큰 검증 실패해도 계속 진행 (비회원 허용)
+    # ===== 크레딧 체크 끝 =====
 
     # 파일 형식 검증
     allowed_extensions = ('.mp3', '.wav', '.m4a')
