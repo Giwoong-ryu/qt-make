@@ -25,10 +25,12 @@ from app.routers.dictionary import router as dictionary_router
 from app.routers.replacement_dictionary import router as replacement_dictionary_router
 from app.routers.auth import router as auth_router
 from app.routers.subscription import router as subscription_router, webhook_router
-from app.middleware.rate_limit import get_rate_limiter
 from supabase import create_client
-from slowapi.errors import RateLimitExceeded
-from slowapi import _rate_limit_exceeded_handler
+
+# Rate Limiting (slowapi 설치 필요 - Docker 재빌드 시 활성화)
+# from app.middleware.rate_limit import get_rate_limiter
+# from slowapi.errors import RateLimitExceeded
+# from slowapi import _rate_limit_exceeded_handler
 
 # Settings
 settings = get_settings()
@@ -53,8 +55,8 @@ r2 = R2Storage()
 # 썸네일 생성기
 thumbnail_generator = get_thumbnail_generator()
 
-# Rate Limiter
-limiter = get_rate_limiter()
+# Rate Limiter (Docker 재빌드 후 활성화)
+# limiter = get_rate_limiter()
 
 # FastAPI 앱
 app = FastAPI(
@@ -64,9 +66,9 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
-# Rate Limiter 등록
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Rate Limiter 등록 (Docker 재빌드 후 활성화)
+# app.state.limiter = limiter
+# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS 설정 (환경변수 기반)
 cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
