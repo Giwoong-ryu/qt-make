@@ -351,7 +351,7 @@ export default function Home() {
       </header>
 
       <div className="p-8 space-y-8">
-        {/* 무료 플랜 크레딧 표시 */}
+        {/* 무료 플랜 크레딧 표시 (엔터프라이즈는 표시 안 함) */}
         {user?.subscription_plan === "free" && (
           <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
