@@ -25,17 +25,24 @@ from app.routers.dictionary import router as dictionary_router
 from app.routers.replacement_dictionary import router as replacement_dictionary_router
 from app.routers.auth import router as auth_router
 from app.routers.subscription import router as subscription_router, webhook_router
+from app.middleware.rate_limit import get_rate_limiter
 from supabase import create_client
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 # Settings
 settings = get_settings()
+
+# 로깅 설정 (환경변수 기반)
+log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Supabase 클라이언트
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
@@ -46,6 +53,9 @@ r2 = R2Storage()
 # 썸네일 생성기
 thumbnail_generator = get_thumbnail_generator()
 
+# Rate Limiter
+limiter = get_rate_limiter()
+
 # FastAPI 앱
 app = FastAPI(
     title="QT Video SaaS API",
@@ -54,21 +64,31 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
-# CORS 설정 (Next.js 프론트엔드 허용)
+# Rate Limiter 등록
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS 설정 (환경변수 기반)
+cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",        # Next.js 개발 서버
-        "http://localhost:3001",        # Next.js 개발 서버 (대체 포트)
-        "http://127.0.0.1:3000",        # 로컬 대체 주소
-        "http://127.0.0.1:3001",        # 로컬 대체 주소 (대체 포트)
-        "http://frontend:3000",          # Docker 내부 통신
-    ],
+    allow_origins=cors_origins,
     allow_origin_regex=r"https://.*\.vercel\.app",  # Vercel 프리뷰 (regex 패턴)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 보안 헤더 미들웨어
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    if settings.ENV == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # Request validation error handler (400 에러 디버깅용)
 @app.exception_handler(RequestValidationError)
@@ -115,13 +135,49 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """상세 헬스 체크"""
-    return {
-        "status": "healthy",
-        "env": settings.ENV,
-        "redis": settings.REDIS_URL,
-        "supabase": settings.SUPABASE_URL[:30] + "...",
-    }
+    """상세 헬스 체크 (외부 서비스 연결 검증)"""
+    checks = {}
+    all_ok = True
+
+    # Redis 연결 확인
+    try:
+        from redis import asyncio as aioredis
+        redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        await redis_client.ping()
+        await redis_client.close()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"failed: {str(e)[:50]}"
+        all_ok = False
+
+    # Supabase 연결 확인
+    try:
+        # 간단한 쿼리로 연결 테스트
+        supabase.table("subscriptions").select("id").limit(1).execute()
+        checks["supabase"] = "ok"
+    except Exception as e:
+        checks["supabase"] = f"failed: {str(e)[:50]}"
+        all_ok = False
+
+    # R2 스토리지 확인 (선택적)
+    try:
+        # R2 자격증명 확인만 (실제 요청은 비용 발생 가능)
+        if settings.R2_ACCESS_KEY_ID and settings.R2_SECRET_ACCESS_KEY:
+            checks["r2"] = "configured"
+        else:
+            checks["r2"] = "not_configured"
+    except Exception as e:
+        checks["r2"] = f"error: {str(e)[:50]}"
+
+    status_code = 200 if all_ok else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if all_ok else "degraded",
+            "env": settings.ENV,
+            "checks": checks,
+        }
+    )
 
 
 @app.post("/api/test-upload")

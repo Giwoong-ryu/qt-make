@@ -39,6 +39,14 @@ services:
     volumes:
       - shared_tmp:/tmp  # API와 Worker 공유 임시 파일
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -63,6 +71,14 @@ services:
     volumes:
       - shared_tmp:/tmp  # API와 Worker 공유 임시 파일
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
 
   # Flower (Celery Monitoring)
   flower:
@@ -98,6 +114,14 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
       interval: 30s

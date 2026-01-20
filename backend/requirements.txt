@@ -10,7 +10,7 @@ redis==5.2.0
 # AI & Media Processing
 groq==0.11.0
 ffmpeg-python==0.2.0
-google-generativeai>=0.8.0
+google-generativeai==0.8.3  # 정확한 버전 고정 (>= 사용 금지)
 Pillow==10.4.0  # 부드러운 텍스트 렌더링용
 
 # Cloud Storage
@@ -21,9 +21,10 @@ supabase==2.9.0
 python-dotenv==1.0.1
 pydantic==2.9.0
 pydantic-settings==2.5.0
-email-validator>=2.0.0
-PyJWT>=2.8.0
+email-validator==2.2.0  # 정확한 버전 고정
+PyJWT==2.9.0  # 정확한 버전 고정
 requests==2.31.0  # Pexels API + Gemini Vision 이미지 다운로드
+slowapi==0.1.9  # Rate Limiting
 
 # Development
 pytest==8.3.0
