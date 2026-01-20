@@ -226,7 +226,7 @@ export default function Home() {
           clipIds: selectedClips.length > 0 ? selectedClips : undefined,
           bgmId: selectedBGM || undefined,
           bgmVolume: bgmVolume,
-          generateThumbnail: generationMode === "default", // 기본설정만 썸네일 생성
+          generateThumbnail: true, // 자연생성/기본설정 모두 썸네일 생성
           generationMode: generationMode,
         };
 
@@ -388,7 +388,7 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">{pendingFiles.length}개 파일 선택됨</p>
               </div>
 
-              {/* 생성 방식 선택 */}
+              {/* 통합된 생성 방식 & 템플릿 선택 */}
               <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
                 <Layers className="w-5 h-5 text-muted-foreground" />
                 <div className="flex-1">
@@ -397,29 +397,21 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <select
-                      value={generationMode}
-                      onChange={(e) => setGenerationMode(e.target.value as "default" | "natural")}
+                      value={selectedTemplateId || generationMode}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "natural" || value === "default") {
+                          setGenerationMode(value as "default" | "natural");
+                          setSelectedTemplateId(null);
+                        } else {
+                          handleTemplateSelect(value);
+                        }
+                      }}
                       className="w-full appearance-none pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <option value="natural">자연 생성 (권장)</option>
                       <option value="default">기본 설정</option>
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* 템플릿 선택 */}
-              {templates.length > 0 && (
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <Layers className="w-5 h-5 text-muted-foreground" />
-                  <div className="flex-1 relative">
-                    <select
-                      value={selectedTemplateId || ""}
-                      onChange={(e) => handleTemplateSelect(e.target.value || null)}
-                      className="w-full appearance-none pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">템플릿 선택 (기본 설정)</option>
+                      {templates.length > 0 && <option disabled>─────────────</option>}
                       {templates.map((template) => (
                         <option key={template.id} value={template.id}>
                           {template.name} (클립 {template.clipIds.length}개)
@@ -428,11 +420,11 @@ export default function Home() {
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
-                  {selectedTemplateId && (
-                    <span className="text-xs text-primary font-medium">적용됨</span>
-                  )}
                 </div>
-              )}
+                {selectedTemplateId && (
+                  <span className="text-xs text-primary font-medium">템플릿 적용됨</span>
+                )}
+              </div>
 
               {pendingFiles.map((file) => (
                 <div key={file.id} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">

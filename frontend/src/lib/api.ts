@@ -328,6 +328,9 @@ export async function createVideoWithOptions(
   if (options.generateThumbnail !== undefined) {
     formData.append("generate_thumbnail", options.generateThumbnail.toString());
   }
+  if (options.generationMode) {
+    formData.append("generation_mode", options.generationMode);
+  }
 
   const response = await api.post("/api/videos/upload", formData, {
     // Content-Type을 직접 설정하지 않음 - Axios가 FormData에 맞게 boundary 포함하여 자동 설정

@@ -561,7 +561,17 @@ def process_video_task(
             content_type=audio_content_type
         )
 
-        logger.info(f"[Step 4/5] R2 업로드 완료 (video, srt, audio)")
+        # ✅ 베이스 영상 업로드 (재생성 시 클립 재처리 스킵용)
+        base_video_url = None
+        if composition_result.base_video_path and os.path.exists(composition_result.base_video_path):
+            base_video_url = r2.upload_file(
+                file_path=str(composition_result.base_video_path),
+                folder="base-videos",
+                content_type="video/mp4"
+            )
+            logger.info(f"[Step 4/5] 베이스 영상 업로드 완료: {base_video_url}")
+
+        logger.info(f"[Step 4/5] R2 업로드 완료 (video, srt, audio, base_video)")
 
         self.update_state(
             state="PROCESSING",
@@ -577,7 +587,7 @@ def process_video_task(
         )
 
         # videos 테이블 업데이트
-        supabase.table("videos").update({
+        update_data = {
             "video_file_path": video_url,
             "srt_file_path": srt_url,
             "audio_file_path": audio_url,  # R2 URL로 업데이트 (재생성 시 필요)
@@ -585,7 +595,13 @@ def process_video_task(
             "status": "completed",
             "clips_used": used_clip_ids,
             "completed_at": datetime.utcnow().isoformat()
-        }).eq("id", video_id).execute()
+        }
+
+        # ✅ 베이스 영상 URL 저장 (재생성 시 클립 재처리 스킵)
+        if base_video_url:
+            update_data["base_video_path"] = base_video_url
+
+        supabase.table("videos").update(update_data).eq("id", video_id).execute()
 
         # 클립 사용 횟수 증가
         for cid in used_clip_ids:
@@ -798,24 +814,52 @@ def regenerate_video_task(
                     bgm_path = f.name
                     temp_files.append(bgm_path)
 
-        # 3. 클립 선택
+        # 3. 클립 선택 또는 베이스 영상 재사용
         self.update_state(state="PROCESSING", meta={"progress": 30, "step": "클립 구성 중..."})
-        
-        clip_selector = get_clip_selector()
+
         video_composer = get_video_composer()
         audio_duration = video_composer.get_audio_duration(audio_path)
-        
-        final_clip_ids = clip_ids if clip_ids else video_data.get("clips_used", [])
-        
-        if final_clip_ids:
-            selected_clips = clip_selector.get_clips_by_ids(final_clip_ids, audio_duration)
+
+        # ✅ 베이스 영상 재사용 (클립 재처리 스킵!)
+        base_video_url = video_data.get("base_video_path")
+        clip_paths = []
+        clip_durations = []
+        used_clip_ids = video_data.get("clips_used", [])
+
+        if base_video_url:
+            logger.info("[Regenerate] 베이스 영상 재사용 - 클립 처리 스킵")
+
+            # 베이스 영상 다운로드
+            if not base_video_url.startswith("http"):
+                base_video_url = f"{settings.R2_PUBLIC_URL}/{base_video_url}"
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f:
+                resp = httpx.get(base_video_url, timeout=120.0)
+                if resp.status_code != 200:
+                    raise ValueError(f"베이스 영상 다운로드 실패 (HTTP {resp.status_code}): {base_video_url}")
+                f.write(resp.content)
+                base_video_path = f.name
+                temp_files.append(base_video_path)
+
+            clip_paths = [base_video_path]
+            clip_durations = [audio_duration]
+            logger.info(f"[Regenerate] 베이스 영상 다운로드 완료: {base_video_path}")
         else:
-            # Fallback
-            selected_clips = clip_selector.select_clips(audio_duration, pack_id="pack-free")
-            
-        clip_paths = [c["file_path"] for c in selected_clips]
-        used_clip_ids = [c["id"] for c in selected_clips]
-        clip_durations = [c.get("duration", 30) for c in selected_clips]
+            # ❌ 베이스 영상 없으면 기존 방식 (클립 재처리)
+            logger.warning("[Regenerate] 베이스 영상 없음 - 클립 재처리")
+
+            clip_selector = get_clip_selector()
+            final_clip_ids = clip_ids if clip_ids else used_clip_ids
+
+            if final_clip_ids:
+                selected_clips = clip_selector.get_clips_by_ids(final_clip_ids, audio_duration)
+            else:
+                # Fallback
+                selected_clips = clip_selector.select_clips(audio_duration, pack_id="pack-free")
+
+            clip_paths = [c["file_path"] for c in selected_clips]
+            used_clip_ids = [c["id"] for c in selected_clips]
+            clip_durations = [c.get("duration", 30) for c in selected_clips]
         
         # Note: video_composer.BGM_VOLUME can be overridden if needed, 
         # but for now we set it globally or need to refactor VideoComposer to accept volume per call.

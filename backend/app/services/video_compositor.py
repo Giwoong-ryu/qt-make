@@ -1,7 +1,7 @@
 """
 영상 합성기 (Video Compositor)
 
-선택된 클립들을 FFmpeg으로 하나의 영상으로 합성
+선택된 클립들을 다운로드/처리 후 video.py에 위임
 """
 import logging
 import subprocess
@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import requests
 
 from app.services.video_clip_selector import SelectedClip
+from app.services.video import get_video_composer
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,8 @@ class CompositionResult:
     output_path: Path
     total_duration: float
     segments_count: int
-    temp_files: List[Path]  # 정리용
+    temp_files: List[Path]
+    base_video_path: Optional[Path] = None  # 클립만 합친 베이스 영상 (인트로/아웃트로/자막 제외)  # 정리용
 
 
 class VideoCompositor:
@@ -93,7 +95,14 @@ class VideoCompositor:
         progress_callback: Optional[callable] = None
     ) -> CompositionResult:
         """
-        선택된 클립들을 하나의 영상으로 합성
+        선택된 클립들을 다운로드/처리 후 video.py에 위임
+
+        VideoCompositor의 역할:
+        - 클립 다운로드 및 구간별 처리
+        - 처리된 클립들을 concat
+
+        나머지는 video.py가 담당:
+        - 자막, 인트로, 아웃트로, 최종 합성
 
         Args:
             selected_clips: 선택된 클립 리스트 (구간 순서대로)
@@ -117,9 +126,9 @@ class VideoCompositor:
         temp_files = []
 
         try:
-            logger.info(f"Starting video composition for {len(selected_clips)} segments")
+            logger.info(f"[VideoCompositor] Starting clip processing for {len(selected_clips)} segments")
 
-            # Step 1: 각 구간 처리
+            # Step 1: 각 구간 처리 (VideoCompositor의 핵심 역할)
             processed_segments = []
             total_duration = 0.0
 
@@ -135,77 +144,56 @@ class VideoCompositor:
                     f"{clip.segment.segment_type} ({segment_duration:.1f}s)"
                 )
 
-                # 구간별 영상 처리
+                # 구간별 영상 처리 (다운로드 + 트림)
                 segment_video = self._process_segment(clip, idx, temp_files)
                 processed_segments.append(segment_video)
                 total_duration += segment_duration
 
-            # Step 2: 모든 구간 합치기
-            logger.info("Concatenating all segments")
-            final_video = self._concat_segments(processed_segments, temp_files)
+            # Step 2: 모든 구간 합치기 (concat만)
+            logger.info("[VideoCompositor] Concatenating all segments")
+            base_video = self._concat_segments(processed_segments, temp_files)
 
-            # Step 3: 오디오 + BGM 믹싱 (필수)
-            if audio_path:
-                logger.info("Adding audio with BGM")
-                final_with_audio = self._add_audio_with_bgm(
-                    final_video,
-                    audio_path,
-                    bgm_path,
-                    audio_duration or int(total_duration),
-                    bgm_volume,
-                    temp_files
-                )
-            else:
-                final_with_audio = final_video
+            # Step 3: video.py에 나머지 작업 위임 (자막, 인트로, 아웃트로, 최종 합성)
+            logger.info("[VideoCompositor] Delegating to video.py for final composition")
+            video_composer = get_video_composer()
 
-            # Step 4: 자막 추가 (선택)
-            if subtitle_path:
-                logger.info("Adding subtitles")
-                final_with_subs = self._add_subtitles(
-                    final_with_audio,
-                    subtitle_path,
-                    temp_files
-                )
-            else:
-                final_with_subs = final_with_audio
-
-            # Step 5: 인트로 썸네일 추가 (선택)
+            # 인트로가 있으면 compose_video_with_thumbnail, 없으면 compose_video
             if thumbnail_path:
-                logger.info("Adding thumbnail intro")
-                final_with_intro = self._add_thumbnail_intro(
-                    final_with_subs,
-                    thumbnail_path,
-                    thumbnail_duration,
-                    fade_duration,
-                    temp_files
+                final_output = video_composer.compose_video_with_thumbnail(
+                    clip_paths=[str(base_video)],  # 이미 concat된 단일 영상
+                    audio_path=audio_path,
+                    srt_path=subtitle_path,
+                    audio_duration=audio_duration or int(total_duration),
+                    thumbnail_path=thumbnail_path,
+                    thumbnail_duration=thumbnail_duration,
+                    bgm_path=bgm_path,
+                    clip_durations=[total_duration],  # 단일 클립의 길이
+                    bgm_volume=bgm_volume,
+                    outro_image_path=outro_path,
+                    outro_duration=outro_duration
                 )
             else:
-                final_with_intro = final_with_subs
-
-            # Step 6: 아웃트로 추가 (선택)
-            if outro_path:
-                logger.info("Adding outro")
-                final_with_outro = self._add_outro(
-                    final_with_intro,
-                    outro_path,
-                    outro_duration,
-                    fade_duration,
-                    temp_files
+                final_output = video_composer.compose_video(
+                    clip_paths=[str(base_video)],
+                    audio_path=audio_path,
+                    srt_path=subtitle_path,
+                    audio_duration=audio_duration or int(total_duration),
+                    bgm_path=bgm_path,
+                    clip_durations=[total_duration],
+                    bgm_volume=bgm_volume
                 )
-            else:
-                final_with_outro = final_with_intro
 
             # 최종 파일을 output_path로 복사
             import shutil
-            shutil.move(str(final_with_outro), str(output_path))
-
-            logger.info(f"Video composition complete: {output_path}")
+            shutil.copy2(final_output, output_path)
+            logger.info(f"[VideoCompositor] Final video saved to {output_path}")
 
             return CompositionResult(
                 output_path=output_path,
                 total_duration=total_duration,
                 segments_count=len(selected_clips),
-                temp_files=temp_files
+                temp_files=temp_files,
+                base_video_path=base_video  # ✅ 베이스 영상 경로 반환 (재생성 시 재사용)
             )
 
         except Exception as e:
@@ -456,8 +444,7 @@ class VideoCompositor:
             "-f", "concat",
             "-safe", "0",
             "-i", str(concat_list),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질 (프리징 방지)
-            "-c:a", "aac", "-b:a", "192k",  # 오디오도 고품질
+            "-c", "copy",  # 복사 (재인코딩 X, 프리징 방지)
             str(final_video)
         ]
 
@@ -465,245 +452,14 @@ class VideoCompositor:
 
         return final_video
 
-    def _add_audio_with_bgm(
-        self,
-        video_path: Path,
-        voice_path: str,
-        bgm_path: Optional[str],
-        duration: int,
-        bgm_volume: float,
-        temp_files: List[Path]
-    ) -> Path:
-        """
-        음성 + BGM 믹싱
+    # =====================================================================
+    # 아래 메서드들은 video.py가 담당하므로 사용하지 않음 (레거시 코드)
+    # =====================================================================
 
-        Args:
-            video_path: 입력 영상 (영상만)
-            voice_path: 사용자 음성 파일
-            bgm_path: BGM 파일 (선택)
-            duration: 오디오 길이 (초)
-            bgm_volume: BGM 볼륨 (0.0~1.0)
-            temp_files: 임시 파일 리스트
-
-        Returns:
-            오디오가 추가된 영상 경로
-        """
-        logger.info(f"Adding audio from {voice_path} with BGM volume {bgm_volume}")
-
-        output_path = self.temp_dir / "with_audio.mp4"
-        temp_files.append(output_path)
-
-        # BGM 있으면 믹싱, 없으면 음성만
-        if bgm_path and Path(bgm_path).exists():
-            # BGM + 음성 믹싱
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", str(video_path),
-                "-i", voice_path,
-                "-stream_loop", "-1",  # BGM 루프
-                "-i", bgm_path,
-                "-filter_complex",
-                f"[1:a]volume=1.0[voice];"
-                f"[2:a]volume={bgm_volume}[bgm];"
-                f"[voice][bgm]amix=inputs=2:duration=first:dropout_transition=3[aout]",
-                "-map", "0:v",
-                "-map", "[aout]",
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ac", "2",
-                "-t", str(duration),
-                "-movflags", "+faststart",
-                str(output_path)
-            ]
-        else:
-            # BGM 없이 음성만
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", str(video_path),
-                "-i", voice_path,
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-ac", "2",
-                "-shortest",
-                "-movflags", "+faststart",
-                str(output_path)
-            ]
-
-        self._run_ffmpeg(cmd, "add audio with BGM")
-
-        return output_path
-
-    def _add_subtitles(
-        self,
-        video_path: Path,
-        subtitle_path: str,
-        temp_files: List[Path]
-    ) -> Path:
-        """
-        자막 추가
-
-        Args:
-            video_path: 입력 영상
-            subtitle_path: 자막 파일 (.srt)
-            temp_files: 임시 파일 리스트
-
-        Returns:
-            자막이 추가된 영상 경로
-        """
-        logger.info(f"Adding subtitles from {subtitle_path}")
-
-        output_path = self.temp_dir / "with_subtitles.mp4"
-        temp_files.append(output_path)
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", str(video_path),
-            "-vf", f"subtitles={subtitle_path}",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "18",  # 고품질
-            "-c:a", "copy",
-            str(output_path)
-        ]
-
-        self._run_ffmpeg(cmd, "add subtitles")
-
-        return output_path
-
-    def _add_thumbnail_intro(
-        self,
-        video_path: Path,
-        thumbnail_path: str,
-        thumbnail_duration: float,
-        fade_duration: float,
-        temp_files: List[Path]
-    ) -> Path:
-        """
-        영상 시작에 썸네일 이미지 삽입 + 페이드 전환
-
-        Args:
-            video_path: 원본 영상
-            thumbnail_path: 썸네일 이미지 경로
-            thumbnail_duration: 썸네일 표시 시간 (초)
-            fade_duration: 페이드 전환 시간 (초)
-            temp_files: 임시 파일 리스트
-
-        Returns:
-            인트로가 추가된 영상 경로
-        """
-        logger.info(f"Adding thumbnail intro: {thumbnail_duration}s display + {fade_duration}s fade")
-
-        output_path = self.temp_dir / "with_intro.mp4"
-        temp_files.append(output_path)
-
-        # 총 인트로 시간 = 썸네일 + 페이드
-        intro_duration = thumbnail_duration + fade_duration
-
-        # 오디오 딜레이 계산 (밀리초)
-        delay_ms = int(thumbnail_duration * 1000)
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-loop", "1",  # 이미지 루프
-            "-t", str(intro_duration),  # 인트로 길이
-            "-i", thumbnail_path,  # 썸네일 이미지
-            "-i", str(video_path),  # 원본 영상
-            "-filter_complex",
-            f"[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
-            f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[thumb];"
-            f"[1:v]fps=30,format=yuv420p[main];"
-            f"[thumb][main]xfade=transition=fade:duration={fade_duration}:"
-            f"offset={thumbnail_duration}[v];"
-            f"[1:a]adelay={delay_ms}:all=1[a]",
-            "-map", "[v]",
-            "-map", "[a]",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ac", "2",
-            "-movflags", "+faststart",
-            str(output_path)
-        ]
-
-        self._run_ffmpeg(cmd, "add thumbnail intro")
-
-        return output_path
-
-    def _add_outro(
-        self,
-        video_path: Path,
-        outro_path: str,
-        outro_duration: float,
-        fade_duration: float,
-        temp_files: List[Path]
-    ) -> Path:
-        """
-        영상 끝에 아웃트로 이미지 삽입 + 페이드 전환
-
-        Args:
-            video_path: 원본 영상
-            outro_path: 아웃트로 이미지 경로
-            outro_duration: 아웃트로 표시 시간 (초)
-            fade_duration: 페이드 전환 시간 (초)
-            temp_files: 임시 파일 리스트
-
-        Returns:
-            아웃트로가 추가된 영상 경로
-        """
-        logger.info(f"Adding outro: {outro_duration}s display + {fade_duration}s fade")
-
-        output_path = self.temp_dir / "with_outro.mp4"
-        temp_files.append(output_path)
-
-        # 원본 영상 길이 구하기
-        cmd_probe = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(video_path)
-        ]
-        result = subprocess.run(cmd_probe, capture_output=True, text=True)
-        try:
-            video_duration = float(result.stdout.strip())
-        except ValueError:
-            video_duration = 120.0  # 기본값
-
-        # xfade offset = 영상 끝 - 페이드 시간
-        xfade_offset = video_duration - fade_duration
-
-        # 아웃트로 총 길이 = fade + outro_duration
-        outro_total = fade_duration + outro_duration
-
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", str(video_path),  # 원본 영상
-            "-loop", "1",  # 이미지 루프
-            "-t", str(outro_total),  # 아웃트로 길이
-            "-i", outro_path,  # 아웃트로 이미지
-            "-filter_complex",
-            f"[0:v]fps=30,format=yuv420p[main];"
-            f"[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
-            f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=30,format=yuv420p[outro];"
-            f"[main][outro]xfade=transition=fade:duration={fade_duration}:"
-            f"offset={xfade_offset}[v];"
-            f"[0:a]afade=t=out:st={xfade_offset}:d={fade_duration}[a]",
-            "-map", "[v]",
-            "-map", "[a]",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "18",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ac", "2",
-            "-movflags", "+faststart",
-            str(output_path)
-        ]
-
-        self._run_ffmpeg(cmd, "add outro")
-
-        return output_path
+    # def _add_audio_with_bgm(...): → video.py의 compose_video가 담당
+    # def _add_subtitles(...): → video.py의 _add_subtitles가 담당
+    # def _add_thumbnail_intro(...): → video.py의 _add_thumbnail_intro가 담당
+    # def _add_outro(...): → video.py의 _add_outro가 담당
 
     def _run_ffmpeg(self, cmd: List[str], operation: str):
         """

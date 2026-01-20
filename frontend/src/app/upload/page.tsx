@@ -142,7 +142,7 @@ export default function UploadPage() {
         const options: VideoOptions = {
           title: videoTitle || uploadFile.name.replace(/\.[^/.]+$/, ""),
           bgmVolume: bgmVolume,
-          generateThumbnail: generationMode === "default", // 기본설정만 썸네일 생성
+          generateThumbnail: true, // 자연생성/기본설정 모두 썸네일 생성
           generationMode: generationMode,
         };
 
