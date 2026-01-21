@@ -18,6 +18,7 @@ import {
   Trash2,
   Layers,
   ChevronDown,
+  Type,
 } from "lucide-react";
 import {
   ProgressCard,
@@ -57,6 +58,7 @@ export default function Home() {
   const [selectedBGM, setSelectedBGM] = useState<string | null>(null);
   const [bgmVolume, setBgmVolume] = useState(0.12);
   const [generationMode, setGenerationMode] = useState<"default" | "natural">("natural"); // 생성 방식
+  const [subtitleLength, setSubtitleLength] = useState<"short" | "long">("short"); // 자막 길이
 
   // 영상 편집 모달 상태
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -90,6 +92,95 @@ export default function Home() {
   useEffect(() => {
     loadVideos();
   }, [loadVideos]);
+
+  // 🔥 페이지 로드 시 processing 상태 비디오 polling 재시작
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // videos가 아직 로드 안 됐거나 로딩 중이면 스킵
+    if (videos.length === 0 || loadingVideos) return;
+
+    // localStorage에서 video_id -> task_id 매핑 가져오기
+    const savedTaskIds = localStorage.getItem("qt_video_tasks");
+    if (!savedTaskIds) return;  // 저장된 task가 없으면 스킵
+
+    const taskIdMap = JSON.parse(savedTaskIds);
+
+    // videos에서 processing 상태인 것들 찾기
+    const processingVideos = videos.filter(v =>
+      v.status === "processing" && taskIdMap[v.id]
+    );
+
+    console.log('[재시작] processing 영상:', processingVideos.length, '개');
+
+    // 각각에 대해 polling 시작
+    processingVideos.forEach(video => {
+      const taskId = taskIdMap[video.id];
+      if (!taskId) return;
+
+      // 이미 polling 중이면 스킵
+      if (pollingIntervals.current.has(video.id)) {
+        console.log('[재시작] 이미 polling 중:', video.id);
+        return;
+      }
+
+      console.log('[재시작] polling 시작:', video.id, taskId);
+
+      // 새 polling 시작 (videos 상태 업데이트용)
+      const poll = async () => {
+        try {
+          const status = await getTaskStatus(taskId);
+
+          // 완료되면 videos 목록 새로고침 + localStorage 정리
+          if (status.status === "SUCCESS" || status.status === "FAILURE") {
+            console.log('[재시작] 완료:', video.id, status.status);
+
+            const interval = pollingIntervals.current.get(video.id);
+            if (interval) {
+              clearInterval(interval);
+              pollingIntervals.current.delete(video.id);
+            }
+
+            // localStorage에서 task_id 제거
+            const currentTaskIds = localStorage.getItem("qt_video_tasks");
+            if (currentTaskIds) {
+              const currentMap = JSON.parse(currentTaskIds);
+              delete currentMap[video.id];
+              localStorage.setItem("qt_video_tasks", JSON.stringify(currentMap));
+            }
+
+            loadVideos();
+          }
+        } catch (error) {
+          console.error("Video polling error:", error);
+        }
+      };
+
+      poll();
+      const interval = setInterval(poll, 3000);
+      pollingIntervals.current.set(video.id, interval);
+    });
+
+    // cleanup: 더 이상 processing이 아닌 비디오들의 polling 중지
+    pollingIntervals.current.forEach((interval, videoId) => {
+      const video = videos.find(v => v.id === videoId);
+      if (!video || video.status !== "processing") {
+        console.log('[재시작] polling 중지:', videoId);
+        clearInterval(interval);
+        pollingIntervals.current.delete(videoId);
+
+        // localStorage에서도 제거
+        const currentTaskIds = localStorage.getItem("qt_video_tasks");
+        if (currentTaskIds) {
+          const currentMap = JSON.parse(currentTaskIds);
+          if (currentMap[videoId]) {
+            delete currentMap[videoId];
+            localStorage.setItem("qt_video_tasks", JSON.stringify(currentMap));
+          }
+        }
+      }
+    });
+  }, [videos, loadingVideos, loadVideos]);
 
   // 템플릿 로드 (localStorage)
   useEffect(() => {
@@ -161,7 +252,16 @@ export default function Home() {
 
   // 태스크 상태 Polling
   const startPolling = useCallback(
-    (fileId: string, taskId: string) => {
+    (fileId: string, taskId: string, videoId?: string) => {
+      // 🔥 localStorage에 task_id 저장 (새로고침 시 polling 재시작용)
+      if (videoId && typeof window !== "undefined") {
+        const savedTaskIds = localStorage.getItem("qt_video_tasks");
+        const taskIdMap = savedTaskIds ? JSON.parse(savedTaskIds) : {};
+        taskIdMap[videoId] = taskId;
+        localStorage.setItem("qt_video_tasks", JSON.stringify(taskIdMap));
+        console.log('[Polling] localStorage 저장:', videoId, '→', taskId);
+      }
+
       const poll = async () => {
         try {
           const status = await getTaskStatus(taskId);
@@ -183,6 +283,18 @@ export default function Home() {
               clearInterval(interval);
               pollingIntervals.current.delete(fileId);
             }
+
+            // 🔥 완료 시 localStorage에서 제거
+            if (status.result.video_id && typeof window !== "undefined") {
+              const currentTaskIds = localStorage.getItem("qt_video_tasks");
+              if (currentTaskIds) {
+                const currentMap = JSON.parse(currentTaskIds);
+                delete currentMap[status.result.video_id];
+                localStorage.setItem("qt_video_tasks", JSON.stringify(currentMap));
+                console.log('[Polling] localStorage 제거:', status.result.video_id);
+              }
+            }
+
             loadVideos();
           } else if (status.status === "FAILURE") {
             updateFileStatus(fileId, {
@@ -193,6 +305,17 @@ export default function Home() {
             if (interval) {
               clearInterval(interval);
               pollingIntervals.current.delete(fileId);
+            }
+
+            // 🔥 실패 시에도 localStorage에서 제거
+            if (videoId && typeof window !== "undefined") {
+              const currentTaskIds = localStorage.getItem("qt_video_tasks");
+              if (currentTaskIds) {
+                const currentMap = JSON.parse(currentTaskIds);
+                delete currentMap[videoId];
+                localStorage.setItem("qt_video_tasks", JSON.stringify(currentMap));
+                console.log('[Polling] localStorage 제거 (실패):', videoId);
+              }
             }
           }
         } catch (error) {
@@ -228,6 +351,7 @@ export default function Home() {
           bgmVolume: bgmVolume,
           generateThumbnail: true, // 자연생성/기본설정 모두 썸네일 생성
           generationMode: generationMode,
+          subtitleLength: subtitleLength, // 자막 길이
         };
 
         const response = await createVideoWithOptions(
@@ -244,7 +368,8 @@ export default function Home() {
           videoId: response.video_ids[0],
         });
 
-        startPolling(uploadFile.id, response.task_id);
+        // videoId 전달하여 polling 시작 (localStorage 저장 포함)
+        startPolling(uploadFile.id, response.task_id, response.video_ids[0]);
       } catch (error) {
         console.error("Upload error:", error);
         updateFileStatus(uploadFile.id, {
@@ -259,9 +384,10 @@ export default function Home() {
     setSelectedBGM(null);
     setBgmVolume(0.12);
     setGenerationMode("natural");
+    setSubtitleLength("short");
     setSelectedTemplateId(null);
     setIsUploading(false);
-  }, [files, updateFileStatus, startPolling, videoTitle, selectedClips, selectedBGM, bgmVolume, churchId]);
+  }, [files, updateFileStatus, startPolling, videoTitle, selectedClips, selectedBGM, bgmVolume, churchId, generationMode, subtitleLength]);
 
   // 영상 삭제 처리
   const handleDeleteVideo = useCallback(async (videoId: string) => {
@@ -351,40 +477,6 @@ export default function Home() {
       </header>
 
       <div className="p-8 space-y-8">
-        {/* 무료 플랜 크레딧 표시 (엔터프라이즈는 표시 안 함) */}
-        {user?.subscription_plan === "free" && (
-          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  무료 플랜: 이번 주 <strong className="text-lg">{user?.weekly_credits || 0}개</strong> 남음
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  매주 월요일 0시에 10개로 충전됩니다
-                  {user?.weekly_credits_reset_at && (
-                    <span className="ml-2">
-                      (다음 충전: {new Date(user.weekly_credits_reset_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })})
-                    </span>
-                  )}
-                </p>
-              </div>
-              {(user?.weekly_credits || 0) === 0 && (
-                <button
-                  onClick={() => router.push("/subscription")}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-                >
-                  업그레이드
-                </button>
-              )}
-              {(user?.weekly_credits || 0) > 0 && (user?.weekly_credits || 0) <= 3 && (
-                <div className="text-xs text-red-600 dark:text-red-400 font-medium">
-                  ⚠️ 크레딧이 얼마 남지 않았어요!
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Quick Upload 섹션 - 전체 영역 클릭 가능 */}
         <section
           className="bg-card rounded-xl border-2 border-dashed border-border hover:border-primary/50 p-10 cursor-pointer transition-all hover:bg-accent/30"
@@ -458,6 +550,27 @@ export default function Home() {
                 {selectedTemplateId && (
                   <span className="text-xs text-primary font-medium">템플릿 적용됨</span>
                 )}
+              </div>
+
+              {/* 자막 길이 선택 */}
+              <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                <Type className="w-5 h-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    자막 길이
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={subtitleLength}
+                      onChange={(e) => setSubtitleLength(e.target.value as "short" | "long")}
+                      className="w-full appearance-none pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="short">짧게</option>
+                      <option value="long">길게</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
               </div>
 
               {pendingFiles.map((file) => (

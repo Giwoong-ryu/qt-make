@@ -19,6 +19,7 @@ from app.services.thumbnail import get_thumbnail_generator
 from app.services.fixed_segment_analyzer import get_fixed_segment_analyzer
 from app.services.video_clip_selector import get_clip_selector as get_new_clip_selector
 from app.services.video_clip_processor import get_clip_processor
+from app.services.clip_history import get_clip_history_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -78,7 +79,8 @@ def process_video_task(
     clip_ids: list[str] | None = None,
     bgm_id: str | None = None,
     bgm_volume: float = 0.12,
-    generation_mode: str = "natural"  # "default" or "natural"
+    generation_mode: str = "natural",  # "default" or "natural"
+    subtitle_length: str = "short"  # "short"(8자) or "long"(16자/Netflix)
 ):
     """
     QT 영상 생성 메인 파이프라인
@@ -113,7 +115,7 @@ def process_video_task(
             meta={"progress": 5, "step": "음성 인식 중..."}
         )
 
-        whisper = get_whisper_service()
+        whisper = get_whisper_service(subtitle_length=subtitle_length)
         transcription = whisper.get_transcription(audio_file_path, language="ko")
 
         logger.info(f"[Step 1/5] Whisper 인식 완료")
@@ -340,14 +342,22 @@ def process_video_task(
             from app.services.background_video_search import PexelsVideoSearch
             pexels_search = PexelsVideoSearch()
 
+            # 전역 클립 이력 서비스
+            clip_history = get_clip_history_service()
+
+            # 최근 10개 영상에서 사용된 클립 ID 가져오기 (전역 중복 방지)
+            recently_used_global = clip_history.get_recently_used_clips(church_id, limit=10)
+            logger.info(f"[ClipHistory] 최근 10개 영상에서 사용된 클립: {len(recently_used_global)}개")
+
             subtitle_clips = []  # 자막 기반 클립 리스트
-            used_video_ids = set()  # 중복 방지용 (같은 영상 4번 이상 반복 방지)
+            used_video_ids = recently_used_global.copy()  # 전역 중복 + 현재 영상 중복 방지
 
             for idx, (cut, desc) in enumerate(zip(cuts, visual_descriptions)):
                 videos = pexels_search.search_by_visual_description(
                     visual_query=desc.visual_query,
                     duration_needed=int(cut.duration) + 1,
-                    max_results=5  # 3→5로 증가 (중복 제외 후 선택지 확보)
+                    max_results=5,  # 3→5로 증가 (중복 제외 후 선택지 확보)
+                    exclude_ids=used_video_ids  # Pexels 검색 단계에서 이미 사용된 영상 제외
                 )
 
                 if videos:
@@ -381,7 +391,8 @@ def process_video_task(
                     fallback = pexels_search.search_by_visual_description(
                         visual_query="peaceful nature landscape calm serene cinematic",
                         duration_needed=int(cut.duration) + 1,
-                        max_results=3  # 중복 회피 위해 3개 요청
+                        max_results=5,  # 3→5로 증가
+                        exclude_ids=used_video_ids  # 이미 사용된 영상 제외
                     )
                     if fallback:
                         # 중복되지 않은 nature 영상 선택
@@ -426,6 +437,22 @@ def process_video_task(
 
             # used_clip_ids 생성 (VideoCompositor에서 사용)
             used_clip_ids = [f"pexels_{clip['video'].id}" for clip in subtitle_clips]
+
+            # 🆕 clips_metadata 생성 (재생성 시 Pexels URL 재사용)
+            clips_metadata = []
+            for clip_data in subtitle_clips:
+                video = clip_data['video']
+                cut = clip_data['cut']
+                trim_dur = cut.duration if video.duration > cut.duration + 2 else None
+                clips_metadata.append({
+                    "id": f"pexels_{video.id}",
+                    "url": video.file_path,  # Pexels 다운로드 URL
+                    "duration": video.duration,
+                    "trim_duration": trim_dur,
+                    "start_time": cut.start_time,
+                    "end_time": cut.end_time,
+                })
+            logger.info(f"[Stage 3/3] clips_metadata 생성 완료: {len(clips_metadata)}개")
 
             # subtitle_clips → selected_clips 형식 변환 (VideoCompositor 호환성)
             from app.services.video_clip_selector import SelectedClip
@@ -506,11 +533,31 @@ def process_video_task(
 
             # used_clip_ids 생성 (VideoCompositor에서 사용할 video ID 리스트)
             used_clip_ids = []
+            clips_metadata = []  # 🆕 재생성용 메타데이터
+
             for clip in selected_clips:
                 used_clip_ids.append(f"pexels_{clip.video.id}")
+                clips_metadata.append({
+                    "id": f"pexels_{clip.video.id}",
+                    "url": clip.video.file_path,
+                    "duration": clip.video.duration,
+                    "trim_duration": clip.trim_duration,
+                    "start_time": clip.segment.start_time,
+                    "end_time": clip.segment.end_time,
+                })
                 if clip.additional_videos:
                     for vid in clip.additional_videos:
                         used_clip_ids.append(f"pexels_{vid.id}")
+                        clips_metadata.append({
+                            "id": f"pexels_{vid.id}",
+                            "url": vid.file_path,
+                            "duration": vid.duration,
+                            "trim_duration": None,
+                            "start_time": clip.segment.start_time,
+                            "end_time": clip.segment.end_time,
+                        })
+
+            logger.info(f"[Step 2.3] clips_metadata 생성 완료: {len(clips_metadata)}개")
 
             self.update_state(
                 state="PROCESSING",
@@ -789,6 +836,7 @@ def process_video_task(
             "duration": audio_duration,
             "status": "completed",
             "clips_used": used_clip_ids,
+            "clips_metadata": clips_metadata,  # 🆕 Pexels URL 메타데이터 (재생성 시 사용)
             "completed_at": datetime.utcnow().isoformat()
         }
 
@@ -801,6 +849,21 @@ def process_video_task(
         # 클립 사용 횟수 증가
         for cid in used_clip_ids:
             supabase.rpc("increment_clip_used_count", {"clip_id": cid}).execute()
+
+        # 🆕 전역 클립 사용 이력 기록 (중복 방지용)
+        try:
+            clip_ids_with_urls = []
+            for clip_meta in clips_metadata:
+                # "pexels_12345" → 12345 추출
+                clip_id_str = clip_meta["id"].replace("pexels_", "")
+                if clip_id_str.isdigit():
+                    clip_ids_with_urls.append((int(clip_id_str), clip_meta["url"]))
+
+            if clip_ids_with_urls:
+                clip_history.record_used_clips(church_id, video_id, clip_ids_with_urls)
+                logger.info(f"[ClipHistory] 사용된 클립 {len(clip_ids_with_urls)}개 기록 완료")
+        except Exception as e:
+            logger.exception(f"[ClipHistory] 클립 기록 실패 (무시): {e}")
 
         logger.info(f"[Step 5/5] 메타데이터 저장 완료")
 
@@ -858,7 +921,9 @@ def batch_process_videos_task(
     pack_id: str = "pack-free",
     clip_ids: list[str] | None = None,
     bgm_id: str | None = None,
-    bgm_volume: float = 0.12
+    bgm_volume: float = 0.12,
+    generation_mode: str = "natural",
+    subtitle_length: str = "short"
 ):
     """
     주간 영상 일괄 처리 (7개 파일)
@@ -1015,14 +1080,25 @@ def regenerate_video_task(
         video_composer = get_video_composer()
         audio_duration = video_composer.get_audio_duration(audio_path)
 
-        # ✅ 베이스 영상 재사용 (클립 재처리 스킵!)
+        # 🚨 썸네일 인트로/아웃트로 설정 확인 (베이스 영상 재사용 판단용)
+        thumbnail_layout = video_data.get("thumbnail_layout")
+        has_intro_outro_settings = False
+        if thumbnail_layout:
+            intro_settings = thumbnail_layout.get("intro_settings", {})
+            has_intro_outro_settings = (
+                intro_settings.get("useAsIntro", False) or
+                intro_settings.get("useAsOutro", False)
+            )
+
+        # ✅ 베이스 영상 재사용 (단, 인트로/아웃트로 설정 없을 때만!)
         base_video_url = video_data.get("base_video_path")
         clip_paths = []
         clip_durations = []
         used_clip_ids = video_data.get("clips_used", [])
+        clips_metadata = video_data.get("clips_metadata", [])  # 🆕 Pexels 클립 메타데이터
 
-        if base_video_url:
-            logger.info("[Regenerate] 베이스 영상 재사용 - 클립 처리 스킵")
+        if base_video_url and not has_intro_outro_settings:
+            logger.info("[Regenerate] 베이스 영상 재사용 - 클립 처리 스킵 (인트로/아웃트로 없음)")
 
             # 베이스 영상 다운로드
             if not base_video_url.startswith("http"):
@@ -1056,35 +1132,78 @@ def regenerate_video_task(
             clip_durations = [base_video_duration]  # ✅ 실제 측정값 사용
             logger.info(f"[Regenerate] 베이스 영상 다운로드 완료: {base_video_path}")
         else:
-            # ❌ 베이스 영상 없으면 기존 방식 (클립 재처리)
-            logger.warning("[Regenerate] 베이스 영상 없음 - 클립 재처리")
-
-            clip_selector = get_clip_selector()
-            final_clip_ids = clip_ids if clip_ids else used_clip_ids
-
-            if final_clip_ids:
-                selected_clips = clip_selector.get_clips_by_ids(final_clip_ids, audio_duration)
+            # ❌ 베이스 영상 없거나 인트로/아웃트로 설정 있으면 → 클립 재처리
+            if has_intro_outro_settings:
+                logger.info("[Regenerate] 인트로/아웃트로 설정 발견 - 베이스 영상 재사용 스킵, 새로 합성")
             else:
-                # Fallback
-                selected_clips = clip_selector.select_clips(audio_duration, pack_id="pack-free")
+                logger.warning("[Regenerate] 베이스 영상 없음 - 클립 재처리")
 
-            clip_paths = [c["file_path"] for c in selected_clips]
-            used_clip_ids = [c["id"] for c in selected_clips]
-            clip_durations = [c.get("duration", 30) for c in selected_clips]
+            # 🆕 clips_metadata가 있으면 Pexels URL 직접 사용 (장기 해결책)
+            if clips_metadata and len(clips_metadata) > 0:
+                logger.info(f"[Regenerate] clips_metadata 발견 - Pexels URL 직접 사용 ({len(clips_metadata)}개 클립)")
+                clip_paths = []
+                clip_durations = []
+                temp_clip_files = []
+
+                for idx, clip_meta in enumerate(clips_metadata):
+                    clip_url = clip_meta.get("url") or clip_meta.get("video_url")
+                    clip_duration = clip_meta.get("duration", 30)
+                    trim_duration = clip_meta.get("trim_duration")  # 원본 트림 정보
+
+                    if not clip_url:
+                        logger.warning(f"[Regenerate] 클립 {idx+1}: URL 없음, 스킵")
+                        continue
+
+                    # Pexels URL에서 영상 다운로드
+                    logger.info(f"[Regenerate] 클립 {idx+1} 다운로드: {clip_url[:80]}...")
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f:
+                        resp = httpx.get(clip_url, timeout=120.0)
+                        if resp.status_code != 200:
+                            logger.warning(f"[Regenerate] 클립 {idx+1} 다운로드 실패 (HTTP {resp.status_code})")
+                            continue
+                        f.write(resp.content)
+                        clip_paths.append(f.name)
+                        temp_clip_files.append(f.name)
+                        # 트림된 길이가 있으면 사용, 없으면 원본 길이
+                        clip_durations.append(trim_duration if trim_duration else clip_duration)
+                        temp_files.append(f.name)
+
+                if clip_paths:
+                    logger.info(f"[Regenerate] Pexels 클립 다운로드 완료: {len(clip_paths)}개")
+                else:
+                    logger.warning("[Regenerate] Pexels 클립 다운로드 실패 - pack-free fallback")
+                    clip_selector = get_clip_selector()
+                    selected_clips = clip_selector.select_clips(audio_duration, pack_id="pack-free")
+                    clip_paths = [c["file_path"] for c in selected_clips]
+                    used_clip_ids = [c["id"] for c in selected_clips]
+                    clip_durations = [c.get("duration", 30) for c in selected_clips]
+            else:
+                # clips_metadata 없으면 기존 방식 (clips 테이블 조회)
+                clip_selector = get_clip_selector()
+                final_clip_ids = clip_ids if clip_ids else used_clip_ids
+
+                if final_clip_ids:
+                    selected_clips = clip_selector.get_clips_by_ids(final_clip_ids, audio_duration)
+                else:
+                    # Fallback
+                    selected_clips = clip_selector.select_clips(audio_duration, pack_id="pack-free")
+
+                clip_paths = [c["file_path"] for c in selected_clips]
+                used_clip_ids = [c["id"] for c in selected_clips]
+                clip_durations = [c.get("duration", 30) for c in selected_clips]
         
-        # Note: video_composer.BGM_VOLUME can be overridden if needed, 
+        # Note: video_composer.BGM_VOLUME can be overridden if needed,
         # but for now we set it globally or need to refactor VideoComposer to accept volume per call.
         # Currently VideoComposer uses a class constant BGM_VOLUME = 0.12.
-        # To support custom volume, we might need to modify VideoComposer later. 
+        # To support custom volume, we might need to modify VideoComposer later.
         # For now, we proceed with default or modification if class allows.
         # VideoComposer.BGM_VOLUME = bgm_volume # Not thread safe for concurrent tasks!
-        
-        # 4. 썸네일 인트로 확인
-        thumbnail_layout = video_data.get("thumbnail_layout")
+
+        # 4. 썸네일 인트로 확인 (이미 위에서 조회됨 - 중복 제거)
         use_intro = False
         intro_duration = 2.0
         thumbnail_image_path = None
-        
+
         # 아웃트로 설정
         use_outro = False
         outro_duration = 3.0
@@ -1254,12 +1373,15 @@ def regenerate_video_task(
         r2 = get_r2_storage()
         video_url = r2.upload_file(output_video_path, "videos", "video/mp4")
         
+        from datetime import datetime, timezone
+
         supabase.table("videos").update({
             "video_file_path": video_url,
             "clips_used": used_clip_ids,
             "bgm_id": bgm_id,
             "bgm_volume": bgm_volume,
-            "status": "completed"
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", video_id).execute()
         
         # Cleanup

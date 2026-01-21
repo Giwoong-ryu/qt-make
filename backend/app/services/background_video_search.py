@@ -4,8 +4,9 @@
 감정 데이터 기반 Pexels 검색 및 Gemini Vision 안전성 검증
 """
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import google.generativeai as genai
 import requests
@@ -44,33 +45,35 @@ class PexelsVideoSearch:
     }
 
     # 전략별 검색 키워드 (빈도 기반 감정 분석 결과 연동)
+    # Best Practice: Pexels는 구체적 키워드일수록 정확 (broad keywords = 부정확)
+    # Reference: https://www.pexels.com/api/documentation/
     STRATEGY_KEYWORDS = {
         "human": {
             "primary": [
-                "person silhouette suffering dark",
-                "hooded figure alone despair shadow",
-                "person kneeling prayer contemplation",
-                "person crouched pain sorrow"
+                "silhouette sunset back view walking",      # "person" 제거 (얼굴 클로즈업 방지)
+                "hooded figure shadow dark moody",          # 구체적 시각 요소 강조
+                "back view kneeling prayer church",         # 뒷모습 명시
+                "praying hands blur contemplation"          # 신체 부위만 (얼굴 제외)
             ],
-            "fallback": "dark lonely figure silhouette"
+            "fallback": "silhouette shadow back view"       # "person" 완전 제거
         },
         "nature_bright": {
             "primary": [
-                "sunrise golden hour mountain hope",
-                "light breaking through clouds rays",
-                "morning sunlight forest peace",
-                "golden rays hope landscape"
+                "sunrise golden hour mountain rays",        # 명확한 장면 묘사
+                "light breaking through clouds hope",       # 시각적 요소 구체화
+                "morning sunlight forest fog ethereal",     # 분위기 키워드 추가
+                "golden rays sunset landscape peaceful"     # 복합 감정 표현
             ],
-            "fallback": "bright nature sunrise golden"
+            "fallback": "sunrise golden light nature"       # 핵심만 남김
         },
         "nature_calm": {
             "primary": [
-                "calm mountain landscape serene",
-                "peaceful lake reflection quiet",
-                "serene forest nature tranquil",
-                "quiet ocean waves gentle"
+                "calm mountain lake reflection serene",     # 구체적 장소 + 감정
+                "peaceful water surface quiet minimal",     # 미니멀 강조 (사람 제외)
+                "serene forest trees soft focus tranquil",  # 부드러운 시각 강조
+                "gentle ocean waves zen meditation"         # 명상 컨텍스트 명시
             ],
-            "fallback": "calm nature scenery peaceful"
+            "fallback": "calm nature minimal peaceful"      # 미니멀 키워드 추가
         }
     }
 
@@ -91,7 +94,11 @@ class PexelsVideoSearch:
             raise ValueError("GEMINI_API_KEY is required")
 
         genai.configure(api_key=self.gemini_key)
-        self.vision_model = genai.GenerativeModel('gemini-2.5-flash-lite')
+
+        # Gemini Vision 모델 (flash: 정확도 향상, 비용 차이 미미)
+        self.vision_model = genai.GenerativeModel(
+            'gemini-2.5-flash'
+        )
 
     def search_by_mood(
         self,
@@ -150,7 +157,8 @@ class PexelsVideoSearch:
         self,
         visual_query: str,
         duration_needed: int,
-        max_results: int = 5
+        max_results: int = 5,
+        exclude_ids: set = None
     ) -> List[PexelsVideo]:
         """
         Visual Description 기반 영상 검색 (Stage 3)
@@ -164,11 +172,13 @@ class PexelsVideoSearch:
                               shadowy lighting, tense atmosphere, cinematic style"
             duration_needed: 필요한 영상 길이 (초)
             max_results: 반환할 영상 개수
+            exclude_ids: 제외할 영상 ID set (중복 방지용)
 
         Returns:
             검증된 PexelsVideo 리스트
         """
-        logger.info(f"[PexelsSearch] Visual query: {visual_query}")
+        exclude_ids = exclude_ids or set()
+        logger.info(f"[PexelsSearch] Visual query: {visual_query} (excluding {len(exclude_ids)} IDs)")
 
         # QT 묵상 영상 톤 조정: 어두움 70% / 밝음 30%
         # 밝은 키워드 제거 및 어두운 톤 키워드 추가
@@ -196,25 +206,34 @@ class PexelsVideoSearch:
 
         logger.info(f"[PexelsSearch] Modified query (dark tone): {modified_query}")
 
-        # 1. Pexels 검색 (수정된 쿼리 사용)
+        # 1. Pexels 검색 (수정된 쿼리 사용, 2페이지 검색으로 다양성 확보)
+        all_videos_data = []
         try:
-            response = requests.get(
-                self.BASE_URL,
-                headers={"Authorization": self.pexels_key},
-                params={
-                    "query": modified_query,
-                    "per_page": 20,
-                    "orientation": "landscape"
-                },
-                timeout=10
-            )
+            for page in [1, 2]:  # 2페이지 검색으로 40개 후보 확보
+                response = requests.get(
+                    self.BASE_URL,
+                    headers={"Authorization": self.pexels_key},
+                    params={
+                        "query": modified_query,
+                        "per_page": 20,
+                        "page": page,
+                        "orientation": "landscape"
+                    },
+                    timeout=10
+                )
 
-            if response.status_code != 200:
-                logger.error(f"Pexels API error: {response.status_code}")
-                return []
+                if response.status_code != 200:
+                    logger.error(f"Pexels API error: {response.status_code}")
+                    break
 
-            data = response.json()
-            videos_data = data.get("videos", [])
+                data = response.json()
+                page_videos = data.get("videos", [])
+                all_videos_data.extend(page_videos)
+
+                if len(page_videos) < 20:  # 더 이상 결과 없음
+                    break
+
+            videos_data = all_videos_data
 
             if not videos_data:
                 logger.warning("No videos found for visual query")
@@ -239,6 +258,11 @@ class PexelsVideoSearch:
                 if not hd_file:
                     continue
 
+                # 이미 사용된 영상 제외
+                video_id = video_data["id"]
+                if video_id in exclude_ids:
+                    continue
+
                 # duration 필터링 (3초 이상만 - VideoCompositor가 반복 처리)
                 video_duration = video_data.get("duration", 0)
                 if video_duration < 3:
@@ -259,20 +283,49 @@ class PexelsVideoSearch:
             logger.error(f"Pexels search failed: {e}")
             return []
 
-        # 2. Gemini Vision으로 썸네일 검증
+        # 2. Gemini Vision 병렬 검증 (5개씩 배치, 3개 통과 시 조기 중단)
         verified = []
-        for video in candidates:
-            if len(verified) >= max_results:
+        blocked_count = 0
+        checked_count = 0
+        TARGET_PASS = 3  # 목표 통과 개수
+        BATCH_SIZE = 5   # 병렬 처리 배치 크기
+
+        def verify_single(video: PexelsVideo) -> Tuple[PexelsVideo, bool]:
+            """단일 비디오 검증 (병렬 처리용)"""
+            is_safe = self._verify_with_gemini_vision(video.image_url)
+            return (video, is_safe)
+
+        # 배치별 병렬 처리
+        for batch_start in range(0, len(candidates), BATCH_SIZE):
+            # 이미 충분히 통과했으면 조기 중단
+            if len(verified) >= TARGET_PASS:
+                logger.info(f"[PexelsSearch] Early stop: {len(verified)} passed (target: {TARGET_PASS})")
                 break
 
-            is_safe = self._verify_with_gemini_vision(video.image_url)
-            if is_safe:
-                video.vision_verified = True
-                video.quality_score = 50  # 기본 점수
-                verified.append(video)
+            batch = candidates[batch_start:batch_start + BATCH_SIZE]
+            logger.info(f"[PexelsSearch] Batch {batch_start//BATCH_SIZE + 1}: checking {len(batch)} videos (verified: {len(verified)}/{TARGET_PASS})")
 
-        logger.info(f"[PexelsSearch] Verified {len(verified)}/{len(candidates)} videos")
-        return verified
+            # 병렬 검증
+            with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+                futures = {executor.submit(verify_single, video): video for video in batch}
+
+                for future in as_completed(futures):
+                    checked_count += 1
+                    video, is_safe = future.result()
+
+                    if is_safe:
+                        video.vision_verified = True
+                        video.quality_score = 50
+                        verified.append(video)
+                        logger.info(f"[PexelsSearch] ✅ ACCEPT: ID={video.id}")
+                    else:
+                        blocked_count += 1
+                        logger.info(f"[PexelsSearch] ❌ REJECT: ID={video.id}")
+
+        logger.info(f"[PexelsSearch] Result: ✅ {len(verified)} passed, ❌ {blocked_count} blocked (checked: {checked_count}/{len(candidates)})")
+
+        # 품질 좋은 순으로 max_results개만 반환
+        return verified[:max_results]
 
     def _search_pexels(
         self,
@@ -394,73 +447,112 @@ class PexelsVideoSearch:
                 logger.warning(f"Failed to download thumbnail: {thumbnail_url}")
                 return False
 
-            # Gemini Vision 프롬프트 (QT 묵상 영상 톤: 어두움 70% / 밝음 30%)
-            prompt = """이 영상 썸네일을 분석해주세요.
+            # Gemini 3 최적화 프롬프트 (간결 + 구조화 + Few-shot)
+            # Reference: https://www.philschmid.de/gemini-3-prompt-practices
+            # 사용자 예제 10개 기반으로 재설계 (2026-01-21)
+            # 부적절 영상 필터 강화 (2026-01-21) - 노출/패션/모델링 콘텐츠 차단
+            # 정면 얼굴 필터 강화 (2026-01-21) - 얼굴이 보이면 무조건 차단
+            prompt = """<task>
+Classify this video thumbnail for meditation/prayer/spiritual content.
+This is for a Christian prayer/meditation app. Be EXTREMELY STRICT about human faces.
+Output only: ACCEPT or REJECT
+</task>
 
-다음 중 하나라도 해당되면 "REJECT":
+<reject_criteria>
+REJECT if ANY of the following is present:
 
-【사람 관련 REJECT】
-- 사람의 얼굴이 정면에서 보임 (눈, 코, 입 식별 가능)
-- 사람 얼굴이 화면 중앙/측면 어디든 크게 보임
-- 사람 얼굴 표정이 명확하게 보임
-- 사람이 손으로 물건을 조작하는 클로즈업 (예: 상자에서 물건 꺼내기)
-- **화질이 안 좋은 영상** (흐릿함, 노이즈, 저화질)
+1. HUMAN FACES (HIGHEST PRIORITY - ALWAYS REJECT):
+   - ANY face looking at camera (front view, 3/4 view, side view)
+   - Eyes visible and looking towards viewer
+   - Face clearly identifiable (even without smile)
+   - Person posing or sitting in center of frame
+   - Close-up or medium shot showing face details
+   - Studio portrait style (gray background, centered person)
+   - Interview/vlog/presentation setup
 
-【소품/제품 관련 REJECT】
-- 제품, 상자, 도구, 소품이 화면 중심
-- 브랜드명이나 로고가 보임 (예: "Kind" 같은 제품명)
-- 상업적 느낌의 촬영 (제품 광고, 언박싱 등)
+   EXCEPTION (ONLY these are acceptable):
+   - Complete silhouette (black shadow only, no face details)
+   - Back of head only (facing away from camera)
+   - Hooded figure with face COMPLETELY HIDDEN IN SHADOW (if ANY face part visible = REJECT)
+   - Extreme long shot where face is tiny dot (< 5% of frame)
+   - Blurred/out of focus face (intentional artistic blur)
 
-【빛/밝기 관련 REJECT - 최우선 차단!】
-- **강한 빛줄기나 광선이 보임** (light beam, sunbeam, ray of light)
-- **과도하게 밝고 강렬한 빛** (spotlight, 직사광선)
-- 햇살 가득한 화사한 분위기 (선명한 노란색/주황색 빛)
-- 과도하게 따뜻한 톤 (golden hour, sunrise/sunset의 강렬한 빛)
-- 밝고 활기찬 느낌 (묵상 분위기 부적합)
+   ⚠️ IMPORTANT: Nun/veil/religious clothing does NOT exempt from face rule.
+   If you can see eyes, nose, or mouth under veil/habit → REJECT!
 
-【기타 REJECT】
-- 자동차, 오토바이, 기계류가 보임
-- 부적절한 콘텐츠
+2. REVEALING/SUGGESTIVE CONTENT:
+   - Low-cut tops, cleavage, revealing necklines
+   - Tight/form-fitting clothing emphasizing body
+   - Swimwear, bikini, lingerie, underwear
+   - Bare shoulders, midriff, exposed skin
+   - Fashion model poses (hand on hip, looking over shoulder)
+   - Glamour/beauty shots, studio fashion photography
+   - Seductive or alluring expressions
+   - Entertainment industry footage (music videos, fashion shows)
 
-다음은 "ACCEPT":
-- 풍경, 자연, 건축물이 메인
-- **어둡고 묵직한 분위기** (dim light, soft shadows, subdued tones)
-- **차분하고 경건한 톤** (solemn, reverent, contemplative mood)
-- **고화질 영상** (선명하고 깨끗함)
-- 사람은 있지만 얼굴이 보이지 않음:
-  * 뒷모습, 실루엣
-  * 멀리서 작게 보임 (배경)
-  * 후드나 모자로 얼굴 완전히 가려짐
-  * 고개를 깊이 숙여서 얼굴 안 보임
-- 인간의 신체 표현 (얼굴 제외):
-  * 엎드린 모습 (기도, 절망)
-  * 무릎 꿇은 자세 (회개, 탄원)
-  * 두 손 마주잡음 (기도, 간구)
-  * 웅크린 자세 (고통, 슬픔)
-- 사람 손, 발만 보임
-- 빛, 하늘, 물, 자연 요소 중심 (단, 어둡거나 중립적인 톤)
+3. Product/commercial content:
+   - Hand holding light bulb, unboxing, brand logos, advertisements
 
-**톤 우선순위**: 어두움(70%) > 밝음(30%)
-- 어두운 영상 우선 선택
-- 밝은 영상은 30% 이하만 허용
+4. Vehicles:
+   - Cars, motorcycles, driving scenes
 
-응답: "ACCEPT" 또는 "REJECT" 한 단어만 출력"""
+5. Other inappropriate:
+   - Violence, weapons, blood
+   - Alcohol, smoking, drugs
+   - Nightclub, bar, party scenes
+</reject_criteria>
+
+<accept_examples>
+- Nature ONLY: mountains, ocean, forest, sky, clouds, sunset, fog, rain, waterfalls
+- Architecture: church, cathedral, ancient buildings, throne rooms (no people)
+- Objects: coffee cup with sunset, candles, religious symbols, books
+- Text graphics: "Forgiveness", spiritual messages on nature background
+- Light effects: sun rays, golden hour, lens flare
+- Artistic blur, soft focus, black and white, dreamy atmosphere
+- Complete silhouettes: person as black shadow against bright background
+- Back view: person walking away, back of head visible only
+- Hooded figures: face completely hidden in shadow
+- Praying hands ONLY (no face visible at all)
+</accept_examples>
+
+<reject_examples>
+- Woman sitting facing camera (even with neutral expression) ❌
+- Man looking at camera from any angle ❌
+- Person in center of frame with face visible ❌
+- Studio portrait with gray background ❌
+- Close-up of person's face (even if serious) ❌
+- Person in tight clothing ❌
+- Fashion/modeling poses ❌
+- Hand holding product ❌
+- Car driving ❌
+- Beach scenes with swimwear ❌
+- Nun/priest with face visible under veil/habit ❌
+- Religious person praying with face visible ❌
+- Person in church with face looking at camera ❌
+</reject_examples>
+
+CRITICAL RULE: If you can see a person's face clearly (eyes, nose, mouth), ALWAYS REJECT.
+This is for meditation content - faces distract from contemplation.
+
+Output:"""
 
             # Gemini Vision 호출
-            result = self.vision_model.generate_content([
-                {
-                    "mime_type": "image/jpeg",
-                    "data": response.content
-                },
-                prompt
-            ])
+            result = self.vision_model.generate_content(
+                [
+                    {
+                        "mime_type": "image/jpeg",
+                        "data": response.content
+                    },
+                    prompt
+                ]
+            )
 
             verdict = result.text.strip().upper()
             is_safe = "ACCEPT" in verdict
 
-            logger.debug(
-                f"Vision check: {thumbnail_url} → {verdict} "
-                f"({'safe' if is_safe else 'blocked'})"
+            logger.info(
+                f"[Gemini Vision] {thumbnail_url[-20:]} → {verdict} "
+                f"({'✅ PASS' if is_safe else '❌ BLOCKED'})"
             )
 
             return is_safe

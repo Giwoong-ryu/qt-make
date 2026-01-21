@@ -15,14 +15,31 @@ settings = get_settings()
 class WhisperService:
     """Groq Whisper Large v3 Turbo STT 서비스"""
 
-    def __init__(self):
+    # 자막 길이 설정 프리셋
+    SUBTITLE_PRESETS = {
+        "short": {  # QT 영상 최적화 (기본값)
+            "max_chars_per_line": 8,
+            "max_chars_per_subtitle": 16,
+        },
+        "long": {  # Netflix 한국어 기준
+            "max_chars_per_line": 16,
+            "max_chars_per_subtitle": 32,
+        }
+    }
+
+    def __init__(self, subtitle_length: str = "short"):
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.model = "whisper-large-v3-turbo"  # $0.04/hour
 
-    # 자막 설정 (Netflix 한국어 자막 가이드라인 기준)
-    # 참조: docs/KOREAN_SUBTITLE_SEGMENTATION_GUIDE.md
-    MAX_CHARS_PER_LINE = 16  # 한 줄 최대 글자 수 (Netflix 한국어 기준)
-    MAX_CHARS_PER_SUBTITLE = 32  # 자막 블록 최대 글자 수 (2줄 x 16자)
+        # 자막 길이 설정 적용
+        preset = self.SUBTITLE_PRESETS.get(subtitle_length, self.SUBTITLE_PRESETS["short"])
+        self.MAX_CHARS_PER_LINE = preset["max_chars_per_line"]
+        self.MAX_CHARS_PER_SUBTITLE = preset["max_chars_per_subtitle"]
+        self.subtitle_length = subtitle_length
+
+        logger.info(f"WhisperService initialized with subtitle_length={subtitle_length} "
+                    f"(MAX_CHARS_PER_LINE={self.MAX_CHARS_PER_LINE}, "
+                    f"MAX_CHARS_PER_SUBTITLE={self.MAX_CHARS_PER_SUBTITLE})")
     MIN_DURATION = 0.83  # 자막 최소 표시 시간 (초) - Netflix 기준 5/6초
     MAX_DURATION = 5.0  # 자막 최대 표시 시간 (초) - 더 짧게 (7초→5초)
     MIN_GAP_FRAMES = 2  # 자막 간 최소 간격 (프레임) @ 30fps = 약 67ms
@@ -592,13 +609,49 @@ class WhisperService:
                     'text': chunk
                 })
 
+        # 타이밍 겹침 보정: 다음 자막 시작시간이 이전 자막 종료시간보다 빠르면 조정
+        subtitles = self._fix_overlapping_timestamps(subtitles)
+
+        return subtitles
+
+    def _fix_overlapping_timestamps(self, subtitles: list) -> list:
+        """
+        타이밍 겹침 보정: 자막 간 시간이 겹치면 조정
+
+        원인: Whisper STT가 반환하는 segment 타이밍이 가끔 겹침
+        해결: 다음 자막 시작시간 = max(다음 자막 시작, 이전 자막 종료 + gap)
+        """
+        if not subtitles:
+            return subtitles
+
+        MIN_GAP = 0.05  # 최소 50ms 간격
+
+        for i in range(1, len(subtitles)):
+            prev_end = subtitles[i-1]['end']
+            curr_start = subtitles[i]['start']
+
+            # 겹침 발견: 이전 자막 종료 > 현재 자막 시작
+            if prev_end > curr_start - MIN_GAP:
+                # 이전 자막 종료시간 직후로 현재 자막 시작시간 조정
+                new_start = prev_end + MIN_GAP
+                old_duration = subtitles[i]['end'] - subtitles[i]['start']
+
+                subtitles[i]['start'] = new_start
+                # 종료 시간도 같은 duration 유지하도록 조정 (단, 다음 자막과 안 겹치게)
+                subtitles[i]['end'] = new_start + old_duration
+
+                logger.debug(
+                    f"[TimingFix] Subtitle {i}: adjusted start {curr_start:.2f}s → {new_start:.2f}s"
+                )
+
         return subtitles
 
     def _split_text_naturally(self, text: str) -> list:
         """텍스트를 자연스럽게 분할 (문장부호, 조사 기준)"""
         import re
 
-        # 문장 부호로 먼저 분할
+        # 문장 부호로 먼저 분할 (마침표, 느낌표, 물음표)
+        # 핵심: 마침표 뒤에서 무조건 끊음 (최소 길이 제한 없음!)
         sentences = re.split(r'([.!?。])', text)
         chunks = []
         current = ""
@@ -610,19 +663,21 @@ class WhisperService:
             # 문장부호는 이전 텍스트에 붙임
             if part in '.!?。':
                 current += part
-                if len(current) >= 10:  # 최소 길이
+                # 마침표 뒤에서 무조건 분할 (최소 길이 제한 제거!)
+                if current.strip():
                     chunks.append(current.strip())
                     current = ""
             else:
                 if len(current + part) > self.MAX_CHARS_PER_SUBTITLE:
                     if current:
                         chunks.append(current.strip())
-                    # 여전히 긴 경우 강제 분할
+                    # 여전히 긴 경우 강제 분할 (한국어 단어 중간 분리 방지!)
                     while len(part) > self.MAX_CHARS_PER_SUBTITLE:
-                        # 공백 기준 분할
+                        # 1순위: 공백 기준 분할
                         split_pos = part.rfind(' ', 0, self.MAX_CHARS_PER_SUBTITLE)
                         if split_pos == -1:
-                            split_pos = self.MAX_CHARS_PER_SUBTITLE
+                            # 2순위: 조사로 끝나지 않는 위치 찾기
+                            split_pos = self._find_safe_split_position(part, self.MAX_CHARS_PER_SUBTITLE)
                         chunks.append(part[:split_pos].strip())
                         part = part[split_pos:].strip()
                     current = part
@@ -633,6 +688,41 @@ class WhisperService:
             chunks.append(current.strip())
 
         return chunks if chunks else [text]
+
+    def _find_safe_split_position(self, text: str, max_pos: int) -> int:
+        """
+        한국어 단어 중간에서 끊기지 않는 안전한 분할 위치 찾기
+
+        규칙:
+        1. 조사로 끝나는 위치는 피함 (문장 불완전)
+        2. 종결어미로 끝나는 위치 우선
+        3. 없으면 max_pos 반환 (불가피한 경우)
+        """
+        # 뒤에서부터 검사 (최대한 길게 유지)
+        for pos in range(min(max_pos, len(text)), max(max_pos - 6, 1), -1):
+            candidate = text[:pos]
+
+            # 조사로 끝나면 SKIP (문장 불완전)
+            is_particle = False
+            for particle in self.KOREAN_PARTICLES:
+                if candidate.endswith(particle) and len(candidate) > len(particle):
+                    # 단, "때", "데" 등은 조사가 아닐 수 있음
+                    # 길이가 1인 조사만 검사
+                    if len(particle) == 1:
+                        is_particle = True
+                        break
+
+            if not is_particle:
+                # 종결어미로 끝나면 최고! (우선 선택)
+                for ending in self.KOREAN_SENTENCE_ENDINGS:
+                    if candidate.endswith(ending):
+                        return pos
+
+                # 종결어미 아니더라도 조사 아니면 OK
+                return pos
+
+        # 안전한 위치 못 찾으면 max_pos 반환
+        return max_pos
 
     def _split_into_two_lines(self, text: str) -> str:
         """
@@ -764,9 +854,14 @@ class WhisperService:
 _whisper_service: WhisperService | None = None
 
 
-def get_whisper_service() -> WhisperService:
-    """WhisperService 싱글톤"""
-    global _whisper_service
-    if _whisper_service is None:
-        _whisper_service = WhisperService()
-    return _whisper_service
+def get_whisper_service(subtitle_length: str = "short") -> WhisperService:
+    """
+    WhisperService 팩토리 함수
+
+    Args:
+        subtitle_length: 자막 길이 설정 ("short" 또는 "long")
+            - "short": 8자/줄, 16자/블록 (QT 영상 최적화)
+            - "long": 16자/줄, 32자/블록 (Netflix 한국어 기준)
+    """
+    # subtitle_length에 따라 매번 새 인스턴스 생성 (설정이 다를 수 있으므로)
+    return WhisperService(subtitle_length=subtitle_length)

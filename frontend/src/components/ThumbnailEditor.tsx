@@ -72,6 +72,7 @@ interface ThumbnailEditorProps {
 // 외부에서 호출할 수 있는 메서드 타입
 export interface ThumbnailEditorRef {
     exportCanvasImage: () => string | null;
+    getCurrentLayout: () => ThumbnailLayout | null;  // 현재 레이아웃 반환
 }
 
 // 폰트 옵션 - Canvas와 FFmpeg 모두 지원하는 폰트만
@@ -222,6 +223,7 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
     // 미리보기 모달 상태
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
+    const [cachedCanvasImage, setCachedCanvasImage] = useState<string | null>(null);
 
     // 폰트 선택 UI 상태
     const [fontCategory, setFontCategory] = useState<string>('all');
@@ -405,11 +407,12 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
             return exportCanvas.toDataURL('image/jpeg', 0.95);
         };
 
-        // 렌더링 완료 후 부모에게 자동 전달 (debounce 효과)
+        // 렌더링 완료 후 부모에게 자동 전달 + 캐시 저장 (debounce 효과)
         const timeoutId = setTimeout(() => {
             const imageData = exportCleanCanvas();
             if (imageData) {
                 console.log('[ThumbnailEditor] Canvas 이미지 자동 업데이트:', imageData.length, 'bytes');
+                setCachedCanvasImage(imageData);  // 캐시 저장
                 onCanvasImageChange?.(imageData);
             }
         }, 100);
@@ -636,10 +639,7 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
                 if (layout.textBoxes) {
                     setTextBoxes(layout.textBoxes);
                 }
-                if (layout.backgroundImageUrl) {
-                    setBackgroundImageUrl(layout.backgroundImageUrl);
-                    onBackgroundChange?.(layout.backgroundImageUrl);
-                }
+                // backgroundImageUrl은 props로 받아오므로 localStorage에서는 무시
                 if (layout.introSettings) {
                     setLocalIntroSettings(layout.introSettings);
                     onIntroSettingsChange?.(layout.introSettings);
@@ -721,27 +721,37 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
         return exportCanvas.toDataURL('image/jpeg', 0.95);
     }, [bgImage, textBoxes]);
 
-    // 외부에서 exportCanvasImage를 호출할 수 있도록 ref로 노출
+    // 현재 레이아웃 반환 (재생성 시 자동 저장용)
+    const getCurrentLayout = useCallback((): ThumbnailLayout | null => {
+        if (!backgroundImageUrl) return null;
+        return {
+            textBoxes,
+            backgroundImageUrl,
+            introSettings: localIntroSettings,
+        };
+    }, [textBoxes, backgroundImageUrl, localIntroSettings]);
+
+    // 외부에서 exportCanvasImage, getCurrentLayout을 호출할 수 있도록 ref로 노출
     useImperativeHandle(ref, () => ({
         exportCanvasImage,
-    }), [exportCanvasImage]);
+        getCurrentLayout,
+    }), [exportCanvasImage, getCurrentLayout]);
 
-    // 썸네일 미리보기 (Canvas에서 이미지 export 후 모달에 표시)
+    // 썸네일 미리보기 (캐시된 이미지 사용 - 즉시 표시)
     const handleGenerate = useCallback(() => {
-        // Canvas에서 직접 이미지 export
-        const canvasImageData = exportCanvasImage();
-        if (!canvasImageData) {
+        // 캐시된 이미지 사용 (이미 useEffect에서 자동 생성됨)
+        if (!cachedCanvasImage) {
             alert('이미지를 생성할 수 없습니다. 배경 이미지가 로드되었는지 확인하세요.');
             return;
         }
 
-        // 미리보기 모달 표시
-        setPreviewImage(canvasImageData);
+        // 미리보기 모달 즉시 표시 (캐시 사용으로 0초!)
+        setPreviewImage(cachedCanvasImage);
         setShowPreview(true);
 
         // 부모에게 Canvas 이미지 변경 알림 (영상 재생성 시 사용)
-        onCanvasImageChange?.(canvasImageData);
-    }, [exportCanvasImage, onCanvasImageChange]);
+        onCanvasImageChange?.(cachedCanvasImage);
+    }, [cachedCanvasImage, onCanvasImageChange]);
 
     // 미리보기에서 "적용" 버튼 클릭 시 실제 저장
     const handleConfirmGenerate = useCallback(async () => {

@@ -78,35 +78,44 @@ class VisualDescriptionGenerator:
         combined_text = " ".join(subtitle_texts)
 
         prompt = f'''
-You are a {context} film director. Your task is to translate Korean subtitle text into **visual imagery descriptions** suitable for stock video search (Pexels, Shutterstock).
+You are a video search specialist. Analyze the Korean subtitle text and generate **specific, concrete search keywords** for stock video (Pexels).
 
 Critical Rules:
-1. **Focus on ATMOSPHERE, MOOD, COLOR TONE**, not literal objects.
-2. **Describe what the scene would LOOK LIKE**, not what it MEANS.
-3. Use **cinematic language**: "shadowy lighting", "golden hour", "slow motion", "cinematic style", "serene atmosphere".
-4. Output in **English**, 1-2 sentences, optimized for video search.
+1. **IGNORE verse numbers** (e.g., "21절에서 34절")
+2. **Focus on CONCRETE VISUAL ELEMENTS** that match the subtitle content
+3. **Analyze the NARRATIVE FLOW**: What specific scene/action does this subtitle describe?
+4. Output **SHORT, SPECIFIC KEYWORDS** (5-8 words max), NOT long sentences
+5. **Prefer CONCRETE OBJECTS/ACTIONS** over abstract atmosphere descriptions
 
-Hybrid Strategy:
-- If text contains **factual/literal content** (names, places, objects):
-  → Describe the SETTING/CONTEXT (e.g., "John the Baptist" → "prophet in wilderness wearing ancient robes")
-- If text contains **emotional/abstract content** (anger, sadness, hope):
-  → Describe VISUAL METAPHORS (e.g., "hatred" → "dark stormy sky with red tones, tension, aggressive atmosphere")
+Content-Based Matching Strategy:
+- Greeting/Morning → coffee cup, sunrise, morning ritual
+- Biblical characters → middle eastern person, ancient robe, desert/wilderness
+- Teaching/Preaching → religious figure teaching crowd, biblical scene
+- Authority/Anger → ancient king, throne, palace, rage
+- Negative emotions → back view person, dark clouds, stormy weather
+- Physical actions → fist hitting table, hands gesturing
+- Love/Positive → hands making heart shape, light, warmth
+- Prayer → praying hands, black white, contemplation
 
-Examples:
-- "헤로디아가 불편했습니다" → "A woman looking anxious and jealous in an ancient palace, shadowy lighting, tense atmosphere, cinematic style"
-- "원한은 독과 같습니다" → "Dark smoke spreading in black background, silhouette of person in pain, ominous atmosphere, slow motion"
-- "세례 요한이 광야에서" → "Prophet figure in desert wilderness, ancient clothing, golden sunset light, cinematic wide shot"
-- "산을 오르며 기도합니다" → "Person climbing mountain path with hands in prayer, peaceful sunrise, serene nature, inspirational atmosphere"
+Few-shot Examples (CRITICAL - Follow this pattern):
+- "말씀으로 좋은 아침입니다" → "coffee cup sunrise morning peaceful"
+- "세례 요한은 광야에 외치는 소리로" → "middle eastern man walking desert wilderness ancient robe"
+- "설교하며 합당한 회개의 열매를" → "ancient religious figure teaching crowd biblical scene"
+- "그 원한이 세례요한을 죽였습니다" → "ancient king angry palace throne authority rage"
+- "원한, 미움, 시기" → "back view person angry dark stormy clouds"
+- "그것을 우리가 품고있을때 남들을 죽일뿐만아니라" → "fist hitting table anger aggression slam"
+- "미움이 아니라 사랑을" → "hands making heart shape love gesture fingers"
+- "오늘 잠깐 기도하면 어떨까요?" → "praying hands black white contemplation prayer"
 
 Korean subtitle: "{combined_text}"
 
-Step 1: Analyze if this is LITERAL (factual) or ABSTRACT (emotional).
-Step 2: Generate visual description in English.
+Step 1: What is the MAIN SUBJECT/ACTION in this subtitle?
+Step 2: Generate concrete search keywords (5-8 words, Pexels-optimized).
 
 Output format (JSON):
 {{
   "type": "literal" or "abstract",
-  "description": "your visual description here",
+  "description": "your search keywords here (SHORT!)",
   "confidence": 0.0-1.0
 }}'''
 
@@ -138,12 +147,15 @@ Output format (JSON):
 
             parsed = json.loads(json_str)
 
-            return VisualDescription(
+            result = VisualDescription(
                 original_text=combined_text,
                 visual_query=parsed.get("description", response_text),
                 description_type=parsed.get("type", "abstract"),
                 confidence=float(parsed.get("confidence", 0.8))
             )
+
+            logger.info(f"[VisualDescGen] 자막: '{combined_text[:50]}...' → 검색어: '{result.visual_query[:80]}...'")
+            return result
 
         except Exception as e:
             logger.error(f"[VisualDescGen] Failed to generate description: {e}")

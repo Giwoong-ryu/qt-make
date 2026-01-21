@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  CreditCard,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -40,10 +42,10 @@ export function Sidebar() {
   return (
     <aside
       className={`${collapsed ? "w-16" : "w-56"
-        } h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300`}
+        } h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 overflow-hidden`}
     >
       {/* 로고 영역 */}
-      <div className="flex items-center justify-between px-4 py-5 border-b border-sidebar-border">
+      <div className="flex items-center justify-between px-4 py-5 border-b border-sidebar-border shrink-0">
         {!collapsed && (
           <h1 className="text-lg font-bold text-sidebar-foreground">
             QT Video
@@ -62,8 +64,8 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* 네비게이션 */}
-      <nav className="flex-1 px-2 py-4 space-y-1">
+      {/* 네비게이션 - 스크롤 가능 */}
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
@@ -85,8 +87,64 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* 유저 프로필 영역 */}
-      <div className="border-t border-sidebar-border p-3">
+      {/* 구독 관리 영역 - 고정 */}
+      {!collapsed && (
+        <div className="px-3 py-3 border-t border-sidebar-border shrink-0">
+          {user?.subscription_plan === "free" ? (
+            <Link
+              href="/subscription"
+              className="block p-3 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium opacity-90">무료 플랜</span>
+                <CreditCard className="w-4 h-4 opacity-90" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold">{user?.weekly_credits || 0}</span>
+                <span className="text-sm opacity-90">/ 10</span>
+              </div>
+              <p className="text-xs opacity-75 mt-1">이번 주 남은 크레딧</p>
+            </Link>
+          ) : user?.subscription_plan === "enterprise" ? (
+            <Link
+              href="/subscription"
+              className="block p-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium opacity-90">엔터프라이즈</span>
+                <Zap className="w-4 h-4 opacity-90" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold">∞</span>
+                <span className="text-sm opacity-90">무제한</span>
+              </div>
+              <p className="text-xs opacity-75 mt-1">제한 없이 사용 가능</p>
+            </Link>
+          ) : (
+            <Link
+              href="/subscription"
+              className="block p-3 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white transition-all"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium opacity-90">
+                  {user?.subscription_plan === "basic" ? "베이직" : "프로"}
+                </span>
+                <CreditCard className="w-4 h-4 opacity-90" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold">{user?.weekly_credits || 0}</span>
+                <span className="text-sm opacity-90">
+                  / {user?.subscription_plan === "basic" ? "50" : "200"}
+                </span>
+              </div>
+              <p className="text-xs opacity-75 mt-1">이번 주 남은 크레딧</p>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* 유저 프로필 영역 - 고정 */}
+      <div className="border-t border-sidebar-border p-3 shrink-0">
         <div className="flex items-center gap-3">
           {/* 아바타 - 클릭 시 설정으로 이동 */}
           <Link

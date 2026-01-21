@@ -7,7 +7,7 @@ import tempfile
 from uuid import uuid4
 
 from celery.result import AsyncResult
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, Request
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, Request, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -207,6 +207,7 @@ async def upload_videos(
     bgm_volume: str | None = Form(default=None),  # 문자열로 받음
     generate_thumbnail: str | None = Form(default=None),  # 문자열로 받음
     generation_mode: str | None = Form(default="natural"),  # 생성 방식: "default" or "natural"
+    subtitle_length: str | None = Form(default="short"),  # 자막 길이: "short"(8자) or "long"(16자/Netflix)
     authorization: str | None = Header(default=None)  # 인증 토큰
 ):
     """
@@ -357,6 +358,9 @@ async def upload_videos(
         except ValueError:
             logger.warning(f"Invalid bgm_volume format: {bgm_volume}")
 
+    # subtitle_length 검증 (short 또는 long만 허용)
+    valid_subtitle_length = subtitle_length if subtitle_length in ("short", "long") else "short"
+
     # 배치 처리 또는 단일 처리
     if len(files) == 1:
         # 단일 파일: 직접 처리
@@ -368,7 +372,8 @@ async def upload_videos(
             parsed_clip_ids,  # 선택된 클립 ID 리스트
             bgm_id,           # BGM ID
             parsed_bgm_volume, # BGM 볼륨
-            generation_mode   # 생성 방식
+            generation_mode,  # 생성 방식
+            valid_subtitle_length  # 자막 길이
         )
     else:
         # 다중 파일: 배치 처리
@@ -379,7 +384,8 @@ async def upload_videos(
             parsed_clip_ids,  # 선택된 클립 ID 리스트
             bgm_id,           # BGM ID
             parsed_bgm_volume, # BGM 볼륨
-            generation_mode   # 생성 방식
+            generation_mode,  # 생성 방식
+            valid_subtitle_length  # 자막 길이
         )
 
     return {
@@ -721,6 +727,109 @@ async def download_video_file(
     except httpx.RequestError as e:
         logger.error(f"Download error: {e}")
         raise HTTPException(status_code=502, detail="파일 다운로드 중 오류가 발생했습니다.")
+
+
+@app.get("/api/videos/{video_id}/stream")
+async def stream_video(
+    video_id: str,
+    request: Request,
+    range: str = Header(None)
+):
+    """
+    영상 스트리밍 (Range Request 지원)
+
+    브라우저 <video> 태그가 필요한 부분만 요청할 수 있도록 HTTP Range를 지원합니다.
+
+    Args:
+        video_id: 영상 UUID
+        range: HTTP Range 헤더 (예: "bytes=0-1023")
+
+    Returns:
+        StreamingResponse with 206 Partial Content or 200 OK
+    """
+    # 영상 정보 조회
+    video = supabase.table("videos") \
+        .select("id, video_file_path") \
+        .eq("id", video_id) \
+        .execute()
+
+    if not video.data:
+        raise HTTPException(status_code=404, detail="영상을 찾을 수 없습니다.")
+
+    file_url = video.data[0].get("video_file_path")
+    if not file_url:
+        raise HTTPException(status_code=404, detail="영상 파일이 없습니다.")
+
+    try:
+        # HEAD 요청으로 파일 크기 확인
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            head_response = await client.head(file_url, follow_redirects=True)
+            file_size = int(head_response.headers.get("content-length", 0))
+
+            if file_size == 0:
+                raise HTTPException(status_code=502, detail="파일 크기를 확인할 수 없습니다.")
+
+            # Range 요청 파싱
+            start = 0
+            end = file_size - 1
+
+            if range:
+                # "bytes=0-1023" 형식 파싱
+                range_match = range.replace("bytes=", "").split("-")
+                if len(range_match) == 2:
+                    if range_match[0]:
+                        start = int(range_match[0])
+                    if range_match[1]:
+                        end = int(range_match[1])
+
+            # 범위 검증
+            if start >= file_size or end >= file_size or start > end:
+                raise HTTPException(
+                    status_code=416,
+                    detail="Requested Range Not Satisfiable",
+                    headers={"Content-Range": f"bytes */{file_size}"}
+                )
+
+            # Range 헤더로 부분 요청
+            headers = {"Range": f"bytes={start}-{end}"}
+            response = await client.get(file_url, headers=headers, follow_redirects=True)
+
+            if response.status_code not in [200, 206]:
+                raise HTTPException(status_code=502, detail="파일 스트리밍 실패")
+
+            # 청크 단위로 스트리밍 (메모리 효율성)
+            async def stream_chunks():
+                async for chunk in response.aiter_bytes(chunk_size=8192):
+                    yield chunk
+
+            # 206 Partial Content 또는 200 OK 응답
+            status_code = 206 if range else 200
+            content_length = end - start + 1
+
+            response_headers = {
+                "Content-Type": "video/mp4",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(content_length),
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+                "Access-Control-Allow-Headers": "Range",
+                "Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length",
+                "Cache-Control": "public, max-age=3600",
+            }
+
+            if range:
+                response_headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+
+            return StreamingResponse(
+                stream_chunks(),
+                status_code=status_code,
+                headers=response_headers,
+                media_type="video/mp4"
+            )
+
+    except httpx.RequestError as e:
+        logger.error(f"Streaming error: {e}")
+        raise HTTPException(status_code=502, detail="스트리밍 중 오류가 발생했습니다.")
 
 
 # ============================================

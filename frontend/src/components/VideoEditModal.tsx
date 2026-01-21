@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Save,
@@ -92,6 +92,24 @@ export default function VideoEditModal({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true); // 영상 로딩 상태
+
+  // 🔥 안전한 재생/일시정지 핸들러
+  const handlePlayPause = useCallback(async () => {
+    if (!videoRef.current) return;
+
+    try {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        await videoRef.current.play();
+      }
+    } catch (error) {
+      // AbortError 등 재생 실패 시 무시 (DOM 변경 중 발생 가능)
+      console.warn("Play/pause interrupted:", error);
+      setIsPlaying(false);
+    }
+  }, [isPlaying]);
 
   // 데이터 로드
   useEffect(() => {
@@ -199,6 +217,77 @@ export default function VideoEditModal({
       setIsPlaying(false);
     }
   }, [activeTab]);
+
+  // 키보드 단축키
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 입력 필드에 포커스 있으면 무시
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      switch (e.key) {
+        case " ": // 스페이스바: 재생/일시정지
+          e.preventDefault();
+          handlePlayPause();
+          break;
+        case "ArrowLeft": // 왼쪽 화살표: 5초 뒤로
+          e.preventDefault();
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+          }
+          break;
+        case "ArrowRight": // 오른쪽 화살표: 5초 앞으로
+          e.preventDefault();
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.min(
+              videoRef.current.duration,
+              videoRef.current.currentTime + 5
+            );
+          }
+          break;
+        case "ArrowUp": // 위 화살표: 볼륨 증가
+          e.preventDefault();
+          if (videoRef.current) {
+            const newVolume = Math.min(1, volume + 0.1);
+            setVolume(newVolume);
+            videoRef.current.volume = newVolume;
+          }
+          break;
+        case "ArrowDown": // 아래 화살표: 볼륨 감소
+          e.preventDefault();
+          if (videoRef.current) {
+            const newVolume = Math.max(0, volume - 0.1);
+            setVolume(newVolume);
+            videoRef.current.volume = newVolume;
+          }
+          break;
+        case "m": // M: 음소거 토글
+        case "M":
+          e.preventDefault();
+          setIsMuted(!isMuted);
+          if (videoRef.current) {
+            videoRef.current.muted = !isMuted;
+          }
+          break;
+        case "f": // F: 전체화면 토글
+        case "F":
+          e.preventDefault();
+          if (videoRef.current) {
+            if (!document.fullscreenElement) {
+              videoRef.current.requestFullscreen();
+            } else {
+              document.exitFullscreen();
+            }
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handlePlayPause, volume, isMuted]);
 
   // 제목 저장
   const handleSaveTitle = async () => {
@@ -365,7 +454,7 @@ export default function VideoEditModal({
     // 최종 상태 로깅
     console.log("[Regenerate] 최종 imageDataToUse:", imageDataToUse ? `${imageDataToUse.length} bytes` : "없음 - FFmpeg 사용");
 
-    if (!confirm("현재 설정(자막, 배경 등)으로 영상을 다시 만드시겠습니까?\n이전 영상은 덮어씌워집니다.")) return;
+    if (!confirm("인트로/아웃트로를 적용하시겠습니까?\n(썸네일 탭에서 설정한 내용이 영상에 추가됩니다)")) return;
 
     setRegenerating(true);
     try {
@@ -375,17 +464,38 @@ export default function VideoEditModal({
       // 2. 자막 저장
       await updateSubtitles(videoId, subtitles, video.church_id);
 
+      // 2.5. 썸네일 레이아웃 자동 저장 (인트로/아웃트로 설정 포함)
+      if (thumbnailEditorRef.current) {
+        const currentLayout = thumbnailEditorRef.current.getCurrentLayout();
+        if (currentLayout) {
+          console.log("[Regenerate] 썸네일 레이아웃 자동 저장 중...", {
+            hasBackground: !!currentLayout.backgroundImageUrl,
+            textBoxCount: currentLayout.textBoxes?.length || 0,
+            introSettings: currentLayout.introSettings,
+          });
+          try {
+            await saveThumbnailLayout(videoId, currentLayout, video.church_id);
+            console.log("[Regenerate] 썸네일 레이아웃 저장 완료");
+          } catch (layoutError) {
+            console.warn("[Regenerate] 썸네일 레이아웃 저장 실패 (계속 진행):", layoutError);
+            // 레이아웃 저장 실패해도 재생성은 계속 진행
+          }
+        } else {
+          console.log("[Regenerate] 저장할 썸네일 레이아웃 없음 (배경 이미지 미설정)");
+        }
+      }
+
       // 3. 재생성 요청 (Canvas 이미지 포함)
       console.log("[Regenerate] API 호출 - canvas_image_data:", imageDataToUse ? `${imageDataToUse.length} bytes` : "undefined");
       await regenerateVideo(videoId, { canvasImageData: imageDataToUse || undefined }, video.church_id);
 
-      alert("영상 재생성이 시작되었습니다!\n완료되면 알림을 보내드리거나 목록에서 확인할 수 있습니다.");
+      alert("인트로/아웃트로 적용이 시작되었습니다!\n완료되면 알림을 보내드리거나 목록에서 확인할 수 있습니다.");
       onClose(); // 모달 닫기 (백그라운드 작업이므로)
     } catch (error: unknown) {
       console.error("Failed to regenerate video:", error);
 
       // 상세 에러 메시지 파싱
-      let errorMessage = "영상 재생성 요청에 실패했습니다.";
+      let errorMessage = "인트로/아웃트로 적용 요청에 실패했습니다.";
       let errorDetail = "";
 
       if (error instanceof Error) {
@@ -515,14 +625,14 @@ export default function VideoEditModal({
               onClick={handleRegenerate}
               disabled={regenerating}
               className="flex items-center gap-2 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white rounded-lg text-sm transition-colors mr-2"
-              title="현재 자막/설정으로 영상 다시 만들기"
+              title="썸네일 탭에서 설정한 인트로/아웃트로를 영상에 적용합니다"
             >
               {regenerating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
-              영상 재생성
+              인트로 적용
             </button>
             <button
               onClick={handleDelete}
@@ -566,16 +676,60 @@ export default function VideoEditModal({
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
                 {video.video_file_path ? (
                   <>
-                    <video
-                      ref={videoRef}
-                      src={video.video_file_path}
-                      className="w-full h-full object-contain"
-                      playsInline
-                      onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                      onEnded={() => setIsPlaying(false)}
-                    />
+                    <>
+                      <video
+                        key={`${video.id}-${video.completed_at}`}
+                        ref={videoRef}
+                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${video.id}/stream?v=${new Date(video.completed_at || video.created_at).getTime()}`}
+                        className="w-full h-full object-contain"
+                        playsInline
+                        preload="auto"
+                        onLoadStart={() => {
+                          console.log("[Video] Load started");
+                          setVideoLoading(true);
+                        }}
+                        onLoadedMetadata={() => {
+                          console.log("[Video] Metadata loaded, duration:", videoRef.current?.duration);
+                        }}
+                        onLoadedData={() => {
+                          console.log("[Video] Data loaded, ready to play");
+                          setVideoLoading(false);
+                        }}
+                        onCanPlay={() => {
+                          console.log("[Video] Can play through");
+                          setVideoLoading(false);
+                        }}
+                        onWaiting={() => {
+                          console.log("[Video] Waiting for data...");
+                          setVideoLoading(true);
+                        }}
+                        onPlaying={() => {
+                          console.log("[Video] Playing");
+                          setVideoLoading(false);
+                        }}
+                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onEnded={() => setIsPlaying(false)}
+                        onError={(e) => {
+                          console.error("[Video] Error event:", e);
+                          console.error("[Video] Error details:", {
+                            error: videoRef.current?.error,
+                            code: videoRef.current?.error?.code,
+                            message: videoRef.current?.error?.message,
+                            networkState: videoRef.current?.networkState,
+                            readyState: videoRef.current?.readyState,
+                          });
+                          setIsPlaying(false);
+                          setVideoLoading(false);
+                        }}
+                      />
+                      {videoLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                          <Loader2 className="w-8 h-8 animate-spin text-white" />
+                        </div>
+                      )}
+                    </>
                     {/* 자막은 영상에 burn-in 되어 있으므로 별도 오버레이 불필요 */}
                   </>
                 ) : (
@@ -615,10 +769,9 @@ export default function VideoEditModal({
                 {/* 재생 버튼 + 음량 + 다운로드 */}
                 <div className="flex items-center gap-4">
                   <button
-                    onClick={() =>
-                      isPlaying ? videoRef.current?.pause() : videoRef.current?.play()
-                    }
-                    className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
+                    onClick={handlePlayPause}
+                    disabled={loading || !video.video_file_path}
+                    className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isPlaying ? (
                       <Pause className="w-5 h-5" />
@@ -675,6 +828,22 @@ export default function VideoEditModal({
                       다운로드
                     </a>
                   )}
+                </div>
+
+                {/* 단축키 안내 */}
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    키보드 단축키
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-blue-700 dark:text-blue-300">
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">Space</kbd> 재생/일시정지</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">M</kbd> 음소거</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">←</kbd> 5초 뒤로</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">→</kbd> 5초 앞으로</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">↑</kbd> 볼륨 증가</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">↓</kbd> 볼륨 감소</div>
+                    <div><kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border">F</kbd> 전체화면</div>
+                  </div>
                 </div>
               </div>
             </div>
