@@ -16,14 +16,14 @@ class ClipHistoryService:
 
     def get_recently_used_clips(self, church_id: str, limit: int = 10) -> Set[int]:
         """
-        최근 N개 영상에서 사용된 클립 ID 가져오기
+        최근 N개 영상에서 사용된 클립 ID + 영구 블랙리스트 클립 가져오기
 
         Args:
             church_id: 교회 ID
             limit: 최근 영상 개수 (기본 10개)
 
         Returns:
-            최근 사용된 clip_id (Pexels video ID) Set
+            최근 사용된 clip_id + 블랙리스트 clip_id (Pexels video ID) Set
         """
         try:
             sb = get_supabase()
@@ -41,23 +41,41 @@ class ClipHistoryService:
 
             if not recent_videos.data:
                 logger.info(f"[ClipHistory] No recent videos for church {church_id[:8]}")
-                return set()
-
-            video_ids = [v["id"] for v in recent_videos.data]
+                video_ids = []
+            else:
+                video_ids = [v["id"] for v in recent_videos.data]
 
             # 2. 해당 영상들에서 사용된 클립 ID 조회
-            used_clips = (
-                sb.table("used_clips")
+            if video_ids:
+                used_clips = (
+                    sb.table("used_clips")
+                    .select("clip_id")
+                    .in_("video_id", video_ids)
+                    .execute()
+                )
+                clip_ids = {clip["clip_id"] for clip in used_clips.data}
+            else:
+                clip_ids = set()
+
+            # 3. 영구 블랙리스트 클립 추가 (얼굴 포함 클립)
+            blacklist = (
+                sb.table("blacklist_clips")
                 .select("clip_id")
-                .in_("video_id", video_ids)
                 .execute()
             )
 
-            clip_ids = {clip["clip_id"] for clip in used_clips.data}
+            if blacklist.data:
+                blacklist_ids = {clip["clip_id"] for clip in blacklist.data}
+                clip_ids.update(blacklist_ids)
+
+                logger.info(
+                    f"[ClipHistory] Added {len(blacklist_ids)} blacklisted clips"
+                )
 
             logger.info(
-                f"[ClipHistory] Found {len(clip_ids)} unique clips "
-                f"from {len(video_ids)} recent videos (church: {church_id[:8]})"
+                f"[ClipHistory] Found {len(clip_ids)} clips to filter "
+                f"(recent: {len(clip_ids) - len(blacklist_ids) if blacklist.data else len(clip_ids)}, "
+                f"blacklist: {len(blacklist_ids) if blacklist.data else 0})"
             )
 
             return clip_ids

@@ -1,0 +1,447 @@
+{
+    "system_name": "QT Video Search System",
+    "version": "2.0.0",
+    "last_updated": "2026-01-22",
+    "description": "기독교 QT(Quiet Time) 영상 생성을 위한 배경 영상 검색 시스템 - 완전 매뉴얼",
+    "architecture": {
+        "overview": "자막 텍스트 → LLM 키워드 생성 → Pexels API 검색 → Gemini Vision 필터링 → 영상 선택",
+        "flow_diagram": "subtitle → VisualDescriptionGenerator → PexelsVideoSearch → GeminiVision → VideoClipSelector",
+        "stages": [
+            {
+                "stage": 1,
+                "name": "자막 분석 및 키워드 생성",
+                "component": "VisualDescriptionGenerator",
+                "file": "backend/app/services/visual_description_generator.py",
+                "description": "한국어 자막에서 성경 키워드를 감지하고 영어 검색 쿼리 생성",
+                "input": "한국어 자막 텍스트 리스트",
+                "output": "VisualDescription (visual_query, bible_hints)"
+            },
+            {
+                "stage": 2,
+                "name": "영상 검색",
+                "component": "PexelsVideoSearch",
+                "file": "backend/app/services/background_video_search.py",
+                "description": "Pexels API로 영상 검색 (3단계 우선순위)",
+                "input": "visual_query 또는 MoodData",
+                "output": "PexelsVideo 리스트"
+            },
+            {
+                "stage": 3,
+                "name": "Gemini Vision 필터링",
+                "component": "_verify_with_gemini_vision",
+                "file": "backend/app/services/background_video_search.py",
+                "description": "AI로 부적절한 영상(얼굴, 폭력 등) 제거",
+                "input": "영상 썸네일 URL",
+                "output": "boolean (True=안전, False=부적절)"
+            },
+            {
+                "stage": 4,
+                "name": "영상 클립 선택",
+                "component": "VideoClipSelector",
+                "file": "backend/app/services/video_clip_selector.py",
+                "description": "섹션별 최적 영상 선택 (도입/중간/마무리)",
+                "input": "SegmentStrategy 리스트",
+                "output": "SelectedClip 리스트"
+            }
+        ]
+    },
+    "current_video_sources": {
+        "primary": {
+            "name": "Pexels API",
+            "type": "realtime_search",
+            "api_key_location": "settings.PEXELS_API_KEY",
+            "base_url": "https://api.pexels.com/videos/search",
+            "pros": [
+                "무료 (API 제한 있음)",
+                "다양한 영상",
+                "API 제공",
+                "실시간 검색"
+            ],
+            "cons": [
+                "검색어 의존",
+                "품질 불균일",
+                "인물 필터 불가",
+                "성경 전용 콘텐츠 부족"
+            ]
+        },
+        "curated": {
+            "name": "SamuraiPolix Bible Videos",
+            "type": "local_collection",
+            "location": "bible_video_samples/",
+            "count": 56,
+            "size_mb": 421,
+            "source_github": "https://github.com/SamuraiPolix/Shorts-Maker",
+            "pros": [
+                "검증된 품질",
+                "검색 불필요",
+                "일관성",
+                "로열티 프리"
+            ],
+            "cons": [
+                "수량 제한",
+                "자연 경관 위주",
+                "성경 인물 없음"
+            ],
+            "video_characteristics": [
+                "자연 경관 (하늘, 바다, 산, 구름)",
+                "시간대별 장면 (일출, 일몰, 밤하늘)",
+                "풍경 (사막, 강, 호수)",
+                "일부 사람 장면 (뒷모습, 실루엣)"
+            ]
+        }
+    },
+    "search_query_generation": {
+        "method": "hybrid",
+        "description": "정적 매핑(BIBLE_VISUAL_MAPPINGS) + LLM(Gemini) 조합",
+        "components": [
+            {
+                "name": "BIBLE_VISUAL_MAPPINGS",
+                "type": "static_dictionary",
+                "file": "backend/app/services/visual_description_generator.py",
+                "total_entries": 57,
+                "categories": {
+                    "biblical_figures": {
+                        "count": 19,
+                        "examples": {
+                            "세례 요한": "wilderness prophet desert ancient biblical landscape dramatic sky",
+                            "예수님": "light rays divine peaceful cross sunrise hope redemption",
+                            "다윗": "shepherd hills ancient worship crown kingdom",
+                            "모세": "desert mountain wilderness ancient tablets law"
+                        }
+                    },
+                    "biblical_places": {
+                        "count": 14,
+                        "examples": {
+                            "광야": "desert wilderness barren landscape dramatic sky solitude",
+                            "예루살렘": "ancient city sunrise golden light temple walls",
+                            "갈릴리": "calm lake water reflection peaceful fishing boat",
+                            "겟세마네": "olive trees garden night prayer contemplation"
+                        }
+                    },
+                    "biblical_concepts": {
+                        "count": 27,
+                        "examples": {
+                            "죄": "dark shadows storm contemplation solitude rain chains",
+                            "은혜": "light rays soft golden peaceful hope sunrise waterfall",
+                            "구원": "sunrise breakthrough light hope liberation cross rays",
+                            "성령": "dove wind flames light peaceful descending"
+                        }
+                    },
+                    "emotions_moods": {
+                        "count": 9,
+                        "examples": {
+                            "미움": "dark storm clouds rain anger shadows",
+                            "외로움": "solitude alone desert path shadows quiet",
+                            "슬픔": "rain tears grey clouds weeping solitude"
+                        }
+                    },
+                    "daily_life": {
+                        "count": 6,
+                        "examples": {
+                            "아침": "sunrise coffee cup morning peaceful devotion light",
+                            "저녁": "sunset evening peaceful calm reflection twilight"
+                        }
+                    },
+                    "nature_symbols": {
+                        "count": 12,
+                        "examples": {
+                            "빛": "light rays sunrise golden hope divine",
+                            "물": "water river flowing peaceful cleansing serene",
+                            "바다": "ocean waves vast peaceful horizon"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "LLM Keyword Generator",
+                "type": "gemini_llm",
+                "model": "gemini-2.5-flash-lite",
+                "output": "5-8 영어 키워드",
+                "prompt_strategy": "QT/성경 명상에 어울리는 명상적/경건한 영상 키워드 생성"
+            }
+        ],
+        "query_format": {
+            "description": "[LLM 키워드] + [성경 힌트 키워드]",
+            "example": {
+                "subtitle": "세례 요한은 광야에서 외쳤습니다",
+                "llm_keywords": "prophet crying wilderness ancient dramatic",
+                "bible_hints": "wilderness prophet desert ancient biblical landscape dramatic sky",
+                "final_query": "prophet crying wilderness ancient dramatic wilderness prophet desert ancient biblical landscape dramatic sky"
+            }
+        }
+    },
+    "gemini_vision_filter": {
+        "purpose": "부적절한 영상 제거",
+        "method": "_verify_with_gemini_vision()",
+        "input": "영상 썸네일 URL",
+        "decision_logic": "썸네일 분석 후 QT 영상에 적합한지 판단",
+        "accept_criteria": [
+            "자연 경관 (산, 바다, 숲, 하늘)",
+            "추상적 영상 (광선, 물결)",
+            "종교 상징 (십자가, 성경, 기도하는 손)",
+            "명상적 분위기",
+            "실루엣/뒷모습 (얼굴 안 보이는 인물)"
+        ],
+        "reject_criteria": [
+            "인간 얼굴 클로즈업",
+            "폭력적/공격적 내용",
+            "성적/선정적 내용",
+            "브랜드/로고/광고",
+            "현대적 도시 풍경",
+            "정치적/논쟁적 콘텐츠"
+        ],
+        "fallback": "Vision 검증 실패 시 해당 영상 제외"
+    },
+    "video_selection_strategy": {
+        "file": "backend/app/services/video_clip_selector.py",
+        "segments": {
+            "intro": {
+                "name": "도입 구간",
+                "strategy": "25초+ 영상 선택 → 성경 구절 끝나는 지점까지 trim",
+                "preference": "human / nature_bright 전략",
+                "trim": true
+            },
+            "middle": {
+                "name": "중간 구간",
+                "strategy": "30-40초 우선, 없으면 15-20초 반복 재생",
+                "preference": "nature_calm 전략",
+                "trim": false,
+                "note": "human 전략은 반복 시 부자연스러우므로 긴 영상 필수"
+            },
+            "closing": {
+                "name": "마무리 구간",
+                "strategy": "20-30초 영상, trim 안 함",
+                "preference": "nature_calm 전략",
+                "trim": false
+            }
+        },
+        "video_strategies": {
+            "human": {
+                "description": "사람이 포함된 영상 (뒷모습, 실루엣 등)",
+                "use_case": "성경 인물 관련 자막",
+                "filter": "Gemini Vision으로 얼굴 클로즈업 제외"
+            },
+            "nature_bright": {
+                "description": "밝은 자연 경관 (일출, 태양, 맑은 하늘)",
+                "use_case": "희망, 구원, 기쁨 관련 자막"
+            },
+            "nature_calm": {
+                "description": "잔잔한 자연 경관 (물, 숲, 석양)",
+                "use_case": "평화, 명상, 감사 관련 자막"
+            }
+        }
+    },
+    "usage_manual": {
+        "how_to_search_videos": {
+            "method_1_by_mood": {
+                "description": "감정 데이터 기반 검색",
+                "code_example": "video_search.search_by_mood(mood=mood_data, duration_needed=30, max_results=5)",
+                "use_case": "자막 감정 분석 후 적합한 영상 검색"
+            },
+            "method_2_by_visual_description": {
+                "description": "Visual Description 기반 검색 (LLM 감독 출력 사용)",
+                "code_example": "video_search.search_by_visual_description(visual_query='sunrise hope light', duration_needed=30)",
+                "use_case": "LLM이 생성한 시각적 묘사로 검색"
+            },
+            "method_3_by_strategy": {
+                "description": "전략 기반 검색 (human/nature_bright/nature_calm)",
+                "code_example": "video_search.search_by_mood(mood=None, duration_needed=30, strategy='nature_calm')",
+                "use_case": "특정 분위기의 영상 직접 검색"
+            }
+        },
+        "adding_new_bible_keywords": {
+            "file": "backend/app/services/visual_description_generator.py",
+            "location": "BIBLE_VISUAL_MAPPINGS 딕셔너리",
+            "format": "\"한국어 키워드\": \"영어 시각 키워드 (공백 구분)\"",
+            "example": "\"예수님\": \"light rays divine peaceful cross sunrise hope redemption\"",
+            "guidelines": [
+                "얼굴이 아닌 상징적 이미지 사용",
+                "명상적/경건한 분위기 유지",
+                "구체적인 인물 대신 장면/분위기 묘사"
+            ]
+        },
+        "tuning_search_quality": {
+            "pexels_parameters": {
+                "per_page": "페이지당 결과 수 (기본 20)",
+                "orientation": "portrait 권장 (세로 영상)",
+                "size": "medium 이상 권장"
+            },
+            "vision_filter_adjustment": {
+                "file": "backend/app/services/background_video_search.py",
+                "method": "_verify_with_gemini_vision()",
+                "note": "프롬프트 조정으로 필터링 강도 변경 가능"
+            }
+        }
+    },
+    "planned_improvements": {
+        "two_mode_system": {
+            "status": "planned",
+            "priority": "high",
+            "description": "nature 모드와 biblical 모드 분리",
+            "modes": [
+                {
+                    "name": "nature",
+                    "description": "자연 경관 위주, 얼굴 모두 제외",
+                    "video_source": "curated 56개 + Pexels (no people 키워드)"
+                },
+                {
+                    "name": "biblical",
+                    "description": "성경 인물 포함, 중동계 허용",
+                    "video_source": "Pexels (키워드 개선) + 추후 AI 생성"
+                }
+            ]
+        },
+        "curated_video_tagging": {
+            "status": "planned",
+            "priority": "high",
+            "description": "56개 영상에 Gemini Vision으로 태그 부여",
+            "output": "각 영상별 특징 태그 JSON",
+            "benefit": "자막-영상 매칭 정확도 향상"
+        },
+        "search_query_learning": {
+            "status": "planned",
+            "priority": "medium",
+            "description": "성공/실패 검색어 패턴 학습",
+            "approach": "다운로드된 영상의 검색어를 분석하여 효과적인 키워드 발굴"
+        },
+        "local_curated_integration": {
+            "status": "planned",
+            "priority": "high",
+            "description": "56개 영상을 검색 시스템에 통합",
+            "approach": "자막 키워드 → 태그 매칭 → 로컬 영상 우선 사용"
+        }
+    },
+    "recommended_search_keywords": {
+        "prefixes": {
+            "always_add": [
+                "christian"
+            ],
+            "for_nature": [
+                "no people",
+                "landscape",
+                "nature"
+            ],
+            "for_worship": [
+                "worship",
+                "spiritual",
+                "devotion"
+            ]
+        },
+        "categories": {
+            "general_religious": [
+                "christian",
+                "faith",
+                "worship",
+                "prayer",
+                "devotion",
+                "church",
+                "cross",
+                "bible",
+                "scripture"
+            ],
+            "biblical_scenes": [
+                "biblical",
+                "ancient israel",
+                "holy land",
+                "jerusalem",
+                "prophet",
+                "disciple",
+                "apostle",
+                "shepherd",
+                "desert wilderness",
+                "olive garden",
+                "mount sinai"
+            ],
+            "mood_atmosphere": [
+                "spiritual",
+                "sacred",
+                "holy",
+                "divine",
+                "heavenly",
+                "meditation",
+                "contemplation",
+                "peaceful",
+                "serene",
+                "hope",
+                "redemption",
+                "salvation",
+                "grace"
+            ],
+            "visual_elements": [
+                "sun rays",
+                "golden light",
+                "dramatic sky",
+                "silhouette cross",
+                "hands praying",
+                "open bible",
+                "water baptism",
+                "dove",
+                "lamb"
+            ],
+            "nature_backgrounds": [
+                "sunrise",
+                "sunset",
+                "ocean waves",
+                "mountain peak",
+                "flowing river",
+                "starry night",
+                "clouds moving",
+                "desert landscape",
+                "forest path",
+                "calm lake"
+            ]
+        }
+    },
+    "api_configuration": {
+        "pexels": {
+            "api_key_env": "PEXELS_API_KEY",
+            "base_url": "https://api.pexels.com/videos/search",
+            "rate_limit": "200 requests/hour (free tier)",
+            "documentation": "https://www.pexels.com/api/documentation/"
+        },
+        "gemini": {
+            "api_key_env": "GEMINI_API_KEY",
+            "model_vision": "gemini-2.5-flash-lite",
+            "model_text": "gemini-2.5-flash-lite",
+            "documentation": "https://ai.google.dev/docs"
+        }
+    },
+    "files": {
+        "core": [
+            "backend/app/services/visual_description_generator.py",
+            "backend/app/services/background_video_search.py",
+            "backend/app/services/video_clip_selector.py",
+            "backend/app/services/mood_analyzer.py"
+        ],
+        "tests": [
+            "backend/test_bible_visual_mapping.py"
+        ],
+        "video_assets": [
+            "bible_video_samples/"
+        ],
+        "documentation": [
+            "backend/video_search_system.json"
+        ],
+        "scripts": [
+            "download_bible_videos.py",
+            "download_pexels_christian.py"
+        ]
+    },
+    "troubleshooting": {
+        "no_videos_found": [
+            "검색 키워드가 너무 구체적인지 확인",
+            "Pexels API 키 유효성 확인",
+            "네트워크 연결 확인"
+        ],
+        "all_videos_filtered": [
+            "Gemini Vision 필터가 너무 엄격할 수 있음",
+            "_verify_with_gemini_vision() 프롬프트 조정 필요",
+            "검색 키워드에 'no people' 추가"
+        ],
+        "low_quality_results": [
+            "BIBLE_VISUAL_MAPPINGS에 더 구체적인 키워드 추가",
+            "LLM 프롬프트 개선",
+            "Pexels orientation을 portrait로 제한"
+        ]
+    }
+}

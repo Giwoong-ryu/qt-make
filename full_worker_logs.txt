@@ -1,0 +1,595 @@
+﻿docker : time="2026-01-21T21:21:32+09:00" level=warning msg="C:\\Users\\user\\Des
+ktop\\gpt\\n8n-make\\kmong_work\\qt-make\\qt-video-saas\\docker-compose.yml: the 
+attribute `version` is obsolete, it will be ignored, please remove it to avoid po
+tential confusion"
+위치 줄:1 문자:1
++ docker compose logs worker --tail=600 2>&1 | Out-File -FilePath full_ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-01-2...tial confusion":S 
+   tring) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+worker-1  | [2026-01-21 10:47:22,206: INFO/ForkPoolWorker-16] Adding 57 PIL subtitles with overlay
+worker-1  | [2026-01-21 10:47:57,418: INFO/ForkPoolWorker-16] Video composed: /tmp/qt-video/098b214c-2176-49e9-ac92-bad6f4fa0be6.mp4
+worker-1  | [2026-01-21 10:47:57,419: INFO/ForkPoolWorker-16] Adding thumbnail intro: 3s display + 1.0s fade (Audio delay: 3000ms)
+worker-1  | [2026-01-21 10:48:55,862: INFO/ForkPoolWorker-16] Adding outro: 3s display + 1.0s fade at offset 128.016s
+worker-1  | [2026-01-21 10:49:41,965: INFO/ForkPoolWorker-16] Video with thumbnail composed: /tmp/qt-video/with_outro_7d714cbb-897c-4cd1-bfa8-cacfc62aafd7.mp4
+worker-1  | [2026-01-21 10:49:41,976: INFO/ForkPoolWorker-16] Uploading to R2: videos/de4db586-0a37-4e3a-a1e7-dac19f13bf90_with_outro_7d714cbb-897c-4cd1-bfa8-cacfc62aafd7.mp4
+worker-1  | [2026-01-21 10:49:46,696: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/de4db586-0a37-4e3a-a1e7-dac19f13bf90_with_outro_7d714cbb-897c-4cd1-bfa8-cacfc62aafd7.mp4
+worker-1  | [2026-01-21 10:49:47,115: INFO/ForkPoolWorker-16] HTTP Request: PATCH https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?id=eq.59a3456d-7768-4d40-8dd6-303440ae2fef "HTTP/2 200 OK"
+worker-1  | [2026-01-21 10:49:47,155: INFO/ForkPoolWorker-16] Task 2ede6399-57d8-41dc-bd0e-66e35085912e completed successfully
+worker-1  | [2026-01-21 10:49:47,155: INFO/ForkPoolWorker-16] Task app.tasks.regenerate_video_task[2ede6399-57d8-41dc-bd0e-66e35085912e] succeeded in 265.91406385903247s: {'video_url': 'https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/de4db586-0a37-4e3a-a1e7-dac19f13bf90_with_outro_7d714cbb-897c-4cd1-bfa8-cacfc62aafd7.mp4'}
+worker-1  | 
+worker-1  | worker: Warm shutdown (MainProcess)
+worker-1  | /app/app/services/stt_correction.py:10: FutureWarning: 
+worker-1  | 
+worker-1  | All support for the `google.generativeai` package has ended. It will no longer be receiving 
+worker-1  | updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+worker-1  | See README for more details:
+worker-1  | 
+worker-1  | https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+worker-1  | 
+worker-1  |   import google.generativeai as genai
+worker-1  | /usr/local/lib/python3.11/site-packages/celery/platforms.py:829: SecurityWarning: You're running the worker with superuser privileges: this is
+worker-1  | absolutely not recommended!
+worker-1  | 
+worker-1  | Please specify a different user using the --uid option.
+worker-1  | 
+worker-1  | User information: uid=0 euid=0 gid=0 egid=0
+worker-1  | 
+worker-1  |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(
+worker-1  |  
+worker-1  |  -------------- celery@ed1fa9ffac80 v5.4.0 (opalescent)
+worker-1  | --- ***** ----- 
+worker-1  | -- ******* ---- Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41 2026-01-21 12:08:06
+worker-1  | - *** --- * --- 
+worker-1  | - ** ---------- [config]
+worker-1  | - ** ---------- .> app:         qt_video:0x7b8726e6abd0
+worker-1  | - ** ---------- .> transport:   redis://redis:6379/0
+worker-1  | - ** ---------- .> results:     redis://redis:6379/0
+worker-1  | - *** --- * --- .> concurrency: 16 (prefork)
+worker-1  | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+worker-1  | --- ***** ----- 
+worker-1  |  -------------- [queues]
+worker-1  |                 .> celery           exchange=celery(direct) key=celery
+worker-1  |                 
+worker-1  | 
+worker-1  | [tasks]
+worker-1  |   . app.tasks.batch_process_videos_task
+worker-1  |   . app.tasks.process_video_task
+worker-1  |   . app.tasks.regenerate_video_task
+worker-1  | 
+worker-1  | [2026-01-21 12:08:09,709: WARNING/MainProcess] /usr/local/lib/python3.11/site-packages/celery/worker/consumer/consumer.py:508: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+worker-1  | whether broker connection retries are made during startup in Celery 6.0 and above.
+worker-1  | If you wish to retain the existing behavior for retrying connections on startup,
+worker-1  | you should set broker_connection_retry_on_startup to True.
+worker-1  |   warnings.warn(
+worker-1  | 
+worker-1  | [2026-01-21 12:08:09,729: INFO/MainProcess] Connected to redis://redis:6379/0
+worker-1  | [2026-01-21 12:08:09,732: WARNING/MainProcess] /usr/local/lib/python3.11/site-packages/celery/worker/consumer/consumer.py:508: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+worker-1  | whether broker connection retries are made during startup in Celery 6.0 and above.
+worker-1  | If you wish to retain the existing behavior for retrying connections on startup,
+worker-1  | you should set broker_connection_retry_on_startup to True.
+worker-1  |   warnings.warn(
+worker-1  | 
+worker-1  | [2026-01-21 12:08:09,735: INFO/MainProcess] mingle: searching for neighbors
+worker-1  | [2026-01-21 12:08:10,752: INFO/MainProcess] mingle: all alone
+worker-1  | [2026-01-21 12:08:10,777: INFO/MainProcess] celery@ed1fa9ffac80 ready.
+worker-1  | [2026-01-21 12:08:37,485: INFO/MainProcess] Task app.tasks.process_video_task[a3d9cb5b-bb95-43fe-a459-18345a661f9f] received
+worker-1  | [2026-01-21 12:08:37,539: INFO/ForkPoolWorker-16] WhisperService initialized with subtitle_length=short (MAX_CHARS_PER_LINE=8, MAX_CHARS_PER_SUBTITLE=16)
+worker-1  | [2026-01-21 12:08:37,540: INFO/ForkPoolWorker-16] Transcribing audio: /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.m4a
+worker-1  | [2026-01-21 12:08:39,153: INFO/ForkPoolWorker-16] HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 200 OK"
+worker-1  | [2026-01-21 12:08:39,155: INFO/ForkPoolWorker-16] [Step 1/5] Whisper ?몄떇 ?꾨즺
+worker-1  | [2026-01-21 12:08:39,286: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/global_dictionary?select=original%2C%20replacement%2C%20category%2C%20priority&is_active=eq.True&order=priority.desc%2Ccategory "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:08:39,303: INFO/ForkPoolWorker-16] [DEBUG] ?듯빀 ?ъ쟾 ?곗씠??媛쒖닔: 224
+worker-1  | [2026-01-21 12:08:39,303: INFO/ForkPoolWorker-16] [DEBUG] ?듯빀 ?ъ쟾 ??ぉ: ['寃⑥옄???섎굹濡?, '?댁궘', '?댁떦', '?쇨낢', '?쇱쉈', '?붿뀎', '?붿꽠', '紐⑥꽭', '紐⑥뎽', '?ㅼ쐵', '?ㅻ퉬??, '?곗씠鍮?, '?붾줈紐?, '?붾줈癒?, '?꾨툕?쇳븿', '?섎━??, '?섎━??, '?섎━??, '?댁궗??, '?댁궗?댁븘', '?덈젅誘몄빞', '?쒕젅誘몄빞', '?먯뒪寃?, '?ㅻ땲??, '??덉뼹', '?몄꽭??, '?붾굹', '?먰뿤誘몄빞', '?먯뒪??, '?덉닔', '?덉닔??, '?덉닔 洹몃━?ㅻ룄', '?덉닔洹몃━?ㅻ룄', '踰좊뱶濡?, '踰좊뱾濡?, '?쇳꽣', '諛붿슱', '諛붿삱', '??, '?뷀븳', '議?, '留덊깭', '留덊뀒??, '留덇?', '留덈Ⅴ肄?, '?꾧?', '猷④?', '?쇨퀬蹂?, '鍮뚮┰', '?꾨┰', '?꾨쭏', '?좊쭏??, '?덈뱶??, '?ㅻ뱶瑜?, '留덈━??, '留됰떖??留덈━??, '?덇퀬?곕え', '?덉퐫?곕え', '??쾶??, '?ш쾶??, '諛붾굹諛?, '?붾え??, '?곕え??, '?ㅻ씪', '?꾨낵濡?, '釉뚮━?ㅺ만??, '?꾧뎬??, '?꾨??쇳븿', '?꾨툕?쇳옒', '諛붾퉴濡?, '?덈（?대젞', '?덈（?щ젞', '踰좊뱾?덊뿴', '踰노젅??, '?섏궗??, '?섏옄??, '媛덈┫由?, '媛덈┫?섏븘', '媛踰꾨굹?', '媛?섏븞', '移대궃', '?댁뒪?쇱뿕', '?좉돕', '?먭돕', '諛붾꺼濡?, '?쀬닔瑜?, '?щ쭏由ъ븘', '?щ쭚由ъ븘', '?좊떎', '?좊?', '?쒕궡??, '?쒕굹??, '媛덈낫由?, '怨④퀬??, '寃잛꽭留덈꽕', '寃뚯꽭留덈땲', '媛먮엺??, '?붾떒媛?, '?랁빐', '媛덈┫由?諛붾떎', '鍮뚮┰蹂?, '?먮쿋??, '?먰럹??, '怨⑤줈??, '?곗궡濡쒕땲媛', '?대줈?덇?', '怨좊┛??, '肄붾┛??, '濡쒕쭏', '?ㅻ쭏?ㅼ퓼??, '?ㅻ찓??, '?뚭툑', '紐⑹궗 ??, '?꾨룄??, '?꾨룄?щ떂', '?λ줈', '?λ줈??, '吏묒궗', '吏묒궗??, '沅뚯궗', '沅뚯궗??, '?깅룄', '?깅룄??, '?뺤젣', '?먮ℓ', '二쇱씪', '二쇱씪 ?덈같', '?섏슂 ?덈같', '湲덉슂 湲곕룄??, '?덈꼍 湲곕룄', '?깃꼍 怨듬?', 'QT', '?먰떚', '諛붾━?덉씤', '諛붾━????, '?щ몢媛쒖씤', '?щ몢媛???, '?쒓린愿', '?덉쐞??, '?대갑??, '?섎굹??, '?ы샇?', '?깅졊', '?깅졊??, '?깅졊 ??, '?쇱쐞?쇱껜', '?쇱쐞 ?쇱껜', '援ъ썝', '???, '???, '??옄媛', '??옄 媛', '遺??, '蹂듭쓬', '留먯?', '留먯벐??, '湲곕룄', '湲곕룄?섎떎', '李ъ뼇', '李ъ뼇 ?섎떎', '?덈같', '?덈같 ?쒕━??, '??씪議?, '???쇱“', '援ъ빟', '援ъ빟 ?깃꼍', '?좎빟', '?좎빟 ?깃꼍', '李쎌꽭湲?, '李쎌꽭 湲?, '異쒖븷援쎄린', '?덉쐞湲?, '誘쇱닔湲?, '?좊챸湲?, '?쒗렪', '?좎뼵', '?꾨룄??, '?뷀븳蹂듭쓬', '?뷀븳 蹂듭쓬', '留덊깭蹂듭쓬', '留덇?蹂듭쓬', '?꾧?蹂듭쓬', '?щ룄?됱쟾', '?щ룄 ?됱쟾', '濡쒕쭏??, '怨좊┛?꾩쟾??, '怨좊┛?꾪썑??, '媛덈씪?붿븘??, '?먮쿋?뚯꽌', '鍮뚮┰蹂댁꽌', '怨⑤줈?덉꽌', '?덈툕由ъ꽌', '?뷀븳怨꾩떆濡?, '?뷀븳 怨꾩떆濡?, '紐⑹궗', '紐⑹궗??, '????, '?ъ뼱??, '?덈뒗 寃?, '?덈뒗寃?, '?섎뒗 寃?, '?섎뒗寃?, '?섎뒗 寃?, '?섎뒗寃?, '萸붽?', '?좎?', '?ъ?', '?덈뤌', '?????덈떎', '?щ떎', '?좎닔?덈떎', '???섏엳??, '?붾Ⅴ?④컯', '?쀬떆由ъ븘', '媛덈┫由??몄닔', '?щ━釉뚯궛', '?댁쭛??, '?섎뒓??, '怨꾩떆濡?, '?쇳쎕', '洹몃옒媛뽮퀬', '嫄?, '?댁?', '洹쇰뜲']
+worker-1  | [2026-01-21 12:08:39,303: INFO/ForkPoolWorker-16] [Step 1.5a] ?듯빀 ?ъ쟾 ?곸슜: 8媛?援먯젙
+worker-1  | [2026-01-21 12:08:39,303: INFO/ForkPoolWorker-16] [DEBUG] 援먯젙 ??  醫뗭? ?꾩묠?낅땲?? ?곕━ 紐⑤뱺 苑껊룞??媛議??섎굹?섏쓽 留먯??쇰줈 醫뗭? ?꾩묠 蹂듬맂 ?섎（ ?섏떆湲곕? 二쇰떂???대쫫?쇰줈 異뺣났?⑸땲?? ?ㅻ뒛 ?곕━媛 ?④퍡 ?섎닃 留먯?? 留덇?蹂듭쓬 4??35?덉뿉??41...
+worker-1  | [2026-01-21 12:08:39,303: INFO/ForkPoolWorker-16] [DEBUG] 援먯젙 ??  醫뗭? ?꾩묠?낅땲?? ?곕━ 紐⑤뱺 苑껊룞??媛議??섎굹?섏쓽 留먯??쇰줈 醫뗭? ?꾩묠 蹂듬맂 ?섎（ ?섏떆湲곕? 二쇰떂???대쫫?쇰줈 異뺣났?⑸땲?? ?ㅻ뒛 ?곕━媛 ?④퍡 ?섎닃 留먯?? 留덇?蹂듭쓬 4??35?덉뿉??41...
+worker-1  | [2026-01-21 12:08:39,353: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/replacement_dictionary?select=original%2C%20replacement%2C%20use_count&church_id=eq.kkotdongsanchurch&order=use_count.desc&limit=100 "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:08:39,354: INFO/ForkPoolWorker-16] [Step 1.5] 珥?8媛?援먯젙 ?꾨즺
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '醫뗭? ?꾩묠?낅땲??...'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?꾩묠?낅땲??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '醫뗭?' / line2: '?꾩묠?낅땲??'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?곕━ 紐⑤뱺 苑껊룞??媛議?..'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?곕━ 紐⑤뱺' / line2: '苑껊룞??媛議?
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섎굹?섏쓽 留먯??쇰줈 醫뗭? ?꾩묠...'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섎굹?섏쓽 留먯??쇰줈' / line2: '醫뗭? ?꾩묠'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '蹂듬맂 ?섎（ ?섏떆湲곕? 二쇰떂??..'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '蹂듬맂 ?섎（' / line2: '?섏떆湲곕? 二쇰떂??
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?대쫫?쇰줈 異뺣났?⑸땲??...'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '異뺣났?⑸땲??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?대쫫?쇰줈' / line2: '異뺣났?⑸땲??'
+worker-1  | [2026-01-21 12:08:39,356: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?ㅻ뒛 ?곕━媛 ?④퍡 ?섎닃 留먯??...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?ㅻ뒛 ?곕━媛' / line2: '?④퍡 ?섎닃 留먯??'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '留덇?蹂듭쓬 4??35?덉뿉??41??留먯??낅땲??...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '留덇?蹂듭쓬 4?? / line2: '35?덉뿉??41??留먯??낅땲??'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?곕━ ?덉닔?섍퍡???쒖옄?ㅺ낵 諛곕?...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?곕━ ?덉닔?섍퍡?? / line2: '?쒖옄?ㅺ낵 諛곕?'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?怨?嫄대꼫?몄쑝濡?嫄대꼫媛??땲??...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '嫄대꼫媛??땲??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?怨?嫄대꼫?몄쑝濡? / line2: '嫄대꼫媛??땲??'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '洹몃븣 ??愿묓뭾??留뚮굹寃??섏짛....'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '留뚮굹寃??섏짛.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '洹몃븣 ??愿묓뭾?? / line2: '留뚮굹寃??섏짛.'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섏?留??덉닔?섍퍡?쒕뒗 二쇰Т?쒓퀬...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섏?留? / line2: '?덉닔?섍퍡?쒕뒗 二쇰Т?쒓퀬'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '怨꾩뀲?댁슂 ?곕━ 紐⑤뱺 ?쒖옄?ㅼ씠...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '怨꾩뀲?댁슂 ?곕━' / line2: '紐⑤뱺 ?쒖옄?ㅼ씠'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '二쎌쓣源??먮젮?뚰븯???덉닔?섏쓣...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '二쎌쓣源? / line2: '?먮젮?뚰븯???덉닔?섏쓣'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '源⑥썎?덈떎 ?덉닔?????곕━瑜?..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '源⑥썎?덈떎 ?덉닔?? / line2: '???곕━瑜?
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?뚮낫吏 ?딆쑝??땲源?...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?뚮낫吏' / line2: '?딆쑝??땲源?'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?듬떟?댁꽌 洹몃뱾???덉닔?섏쓣 源⑥슫...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?듬떟?댁꽌 洹몃뱾?? / line2: '?덉닔?섏쓣 源⑥슫'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '嫄곗짛 ?? ?곕━ ?욎뿉 洹몃윭??..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '嫄곗짛 ?? ?곕━' / line2: '?욎뿉 洹몃윭??
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '而ㅻ떎? 臾몄젣瑜?留뚮궇 ??..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '而ㅻ떎? 臾몄젣瑜? / line2: '留뚮궇 ??
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉뒿?덈떎 ?곕━ ?덉닔?섍퍡??..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉뒿?덈떎 ?곕━' / line2: '?덉닔?섍퍡??
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섏뿉寃?愿?ъ씠 ?녿뒗 寃껋쿂??..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섏뿉寃?愿?ъ씠' / line2: '?녿뒗 寃껋쿂??
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '??꽠?⑥쓣 ?먮굜 ?뚮룄 ?덉뒿?덈떎...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?뚮룄 ?덉뒿?덈떎' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '??꽠?⑥쓣 ?먮굜' / line2: '?뚮룄 ?덉뒿?덈떎'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섏?留??곕━ ?덉닔?섏? 洹?紐⑤뱺...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섏?留??곕━' / line2: '?덉닔?섏? 洹?紐⑤뱺'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '臾몄젣瑜?洹몃깷 ?대쾭???먯?...'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '臾몄젣瑜?洹몃깷' / line2: '?대쾭???먯?'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?딆쑝??땲???ㅻ뒛 ?덉닔?섍퍡??洹?..'
+worker-1  | [2026-01-21 12:08:39,357: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?딆쑝??땲???ㅻ뒛' / line2: '?덉닔?섍퍡??洹?
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '諛붾엺??袁몄???留먯??섏떗?덈떎....'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '留먯??섏떗?덈떎.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '諛붾엺??袁몄??? / line2: '留먯??섏떗?덈떎.'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?좎옞?섎씪, 怨좎슂?섎씪 ?대젃寃?..'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?좎옞?섎씪,' / line2: '怨좎슂?섎씪 ?대젃寃?
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '留먯??섏떗?덈떎. ?? ?곕━ ?욎뿉...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '留먯??섏떗?덈떎.' / line2: '?? ?곕━ ?욎뿉'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덈뒗 紐⑤뱺 臾몄젣瑜??곕━...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덈뒗 紐⑤뱺' / line2: '臾몄젣瑜??곕━'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉닔?섍퍡??紐⑤몢 ???좎옞?섍쾶...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉닔?섍퍡??紐⑤몢' / line2: '???좎옞?섍쾶'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섏떎 以?誘우뒿?덈떎....'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '以?誘우뒿?덈떎.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '誘우뒿?덈떎.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섏떎 以? / line2: '誘우뒿?덈떎.'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '洹몃윭硫댁꽌 ?몃뱾媛??⑥뿀??洹?..'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '洹몃윭硫댁꽌 ?몃뱾媛? / line2: '?⑥뿀??洹?
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?쒖옄?ㅼ뿉寃??덉닔?섍퍡??..'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?쒖옄?ㅼ뿉寃? / line2: '?덉닔?섍퍡??
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '留먯??섏떗?덈떎. ?댁컡?섏뿬 ?대젃寃?..'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '留먯??섏떗?덈떎.' / line2: '?댁컡?섏뿬 ?대젃寃?
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '臾댁꽌?뚰븯?먮깘? ?덊씗媛 ?댁컡...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '臾댁꽌?뚰븯?먮깘?' / line2: '?덊씗媛 ?댁컡'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '誘우쓬???녿뒓??...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '洹몃젃二? 洹?諛곗뿉???덉닔?섎룄...'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '洹몃젃二? 洹? / line2: '諛곗뿉???덉닔?섎룄'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?④퍡 ?怨?怨꾩뀲?댁슂....'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?怨?怨꾩뀲?댁슂.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '怨꾩뀲?댁슂.' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?④퍡 ?怨? / line2: '怨꾩뀲?댁슂.'
+worker-1  | [2026-01-21 12:08:39,358: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉닔?섍퍡???④퍡 ?섏떊?ㅻ㈃ 萸먭?...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉닔?섍퍡???④퍡' / line2: '?섏떊?ㅻ㈃ 萸먭?'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?먮졄寃좎뒿?덇퉴? 萸먭?...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?먮졄寃좎뒿?덇퉴?' / line2: '萸먭?'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '臾댁꽠寃좎뒿?덇퉴? ?덉닔?섏쓣 源⑥슦吏...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '臾댁꽠寃좎뒿?덇퉴?' / line2: '?덉닔?섏쓣 源⑥슦吏'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?딆븘???덉닔?섍낵 ?④퍡??諛곕뒗...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?딆븘???덉닔?섍낵' / line2: '?④퍡??諛곕뒗'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덈?濡?移⑤ぐ?섏? ?딆쓣 寃껋엯?덈떎...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덈?濡?移⑤ぐ?섏?' / line2: '?딆쓣 寃껋엯?덈떎'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?곕━ ?욎뿉 ?덈뒗 臾몄젣 ?곕━...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?곕━ ?욎뿉' / line2: '?덈뒗 臾몄젣 ?곕━'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉닔?섍퍡???닿껐??二쇱떗?덈떎...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?닿껐??二쇱떗?덈떎' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉닔?섍퍡?? / line2: '?닿껐??二쇱떗?덈떎'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?섏?留??곕━ ?덉닔?섍낵 ?④퍡...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?섏?留??곕━' / line2: '?덉닔?섍낵 ?④퍡'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '諛곕? ?怨??덈떎硫??대뼡 臾몄젣??..'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '諛곕? ?怨? / line2: '?덈떎硫??대뼡 臾몄젣??
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '寃곷궪 ?꾩슂媛 ?놁뒿?덈떎...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?꾩슂媛 ?놁뒿?덈떎' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?놁뒿?덈떎' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '寃곷궪 ?꾩슂媛' / line2: '?놁뒿?덈떎'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?곕━ ?덉닔?섍퍡???④퍡 ?섏떆嫄곕뱺???ㅻ뒛 ?곕━...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?곕━ ?덉닔?섍퍡???④퍡' / line2: '?섏떆嫄곕뱺???ㅻ뒛 ?곕━'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉닔?섍퍡??洹몃?? ?④퍡 ?섍퀬...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉닔?섍퍡??洹몃??' / line2: '?④퍡 ?섍퀬'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '怨꾩떗?덈떎 洹??④퍡 ?섏떆??..'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '怨꾩떗?덈떎 洹? / line2: '?④퍡 ?섏떆??
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?덉닔?섍낵 ?④퍡 蹂댁닔?섏? 留먭퀬...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?덉닔?섍낵 ?④퍡' / line2: '蹂댁닔?섏? 留먭퀬'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?먮젮?뚰븯吏 留먭퀬 二쇰떂怨??④퍡...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?먮젮?뚰븯吏 留먭퀬' / line2: '二쇰떂怨??④퍡'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?밸━?섎뒗 ?ㅻ뒛 ?섎（ ?섏떆湲곕?...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?밸━?섎뒗 ?ㅻ뒛' / line2: '?섎（ ?섏떆湲곕?'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '二쇰떂???대쫫?쇰줈 異뺣났?⑸땲??...'
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '異뺣났?⑸땲??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,359: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '二쇰떂???대쫫?쇰줈' / line2: '異뺣났?⑸땲??'
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?곕━ 紐⑤뱺 ?깅룄?몃뱾 二??덉뿉??..'
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?곕━ 紐⑤뱺' / line2: '?깅룄?몃뱾 二??덉뿉??
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '?됰났???섎（ ?섏꽭??...'
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?섎（ ?섏꽭??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG] line2 醫낃껐?대? 諛쒓껄: '?섏꽭??' (?먯닔 +100)
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG 遺꾪븷 寃곌낵] line1: '?됰났???섎（' / line2: '?섏꽭??'
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [DEBUG 2以?遺꾪븷] ?낅젰: '媛먯궗?⑸땲??...'
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] SRT file created: /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:08:39,360: INFO/ForkPoolWorker-16] [Step 1.6] 援먯젙 ??SRT ?앹꽦 ?꾨즺: /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:08:39,671: INFO/ForkPoolWorker-16] [Step 2.1] SRT ?뚯떛 ?쒖옉
+worker-1  | [2026-01-21 12:08:39,672: INFO/ForkPoolWorker-16] [Step 2.1] ?먮쭑 ?뚯떛 ?꾨즺: 57媛?worker-1  | [2026-01-21 12:08:39,672: INFO/ForkPoolWorker-16] [Step 2.2] ?렗 3-Stage Pipeline: Subtitle-Based Clip Matching
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16] [CutListGenerator] LLM response: 0-4, 5-6, 7-9, 10-14, 15-20, 21-26, 27-34, 35-41, 42-46, 47-53, 54-56
+worker-1  | [2026-01-21 12:08:40,968: WARNING/ForkPoolWorker-16] Cut 5-6 too short (6.6s), extending to next subtitle
+worker-1  | [2026-01-21 12:08:40,968: WARNING/ForkPoolWorker-16] Cut 7-9 too short (6.6s), extending to next subtitle
+worker-1  | [2026-01-21 12:08:40,968: WARNING/ForkPoolWorker-16] Cut 27-34 too long (15.6s), will be split in next iteration
+worker-1  | [2026-01-21 12:08:40,968: WARNING/ForkPoolWorker-16] Cut 47-53 too long (17.6s), will be split in next iteration
+worker-1  | [2026-01-21 12:08:40,968: WARNING/ForkPoolWorker-16] Cut 54-56 too short (5.0s), extending to next subtitle
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16] [CutListGenerator] Generated 11 cuts
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 0: 2.5s-11.2s (8.7s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 1: 11.6s-20.2s (8.6s) - 3 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 2: 18.7s-27.3s (8.6s) - 4 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 3: 26.0s-34.9s (8.9s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 4: 34.9s-46.7s (11.8s) - 6 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 5: 47.4s-60.9s (13.5s) - 6 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 6: 61.0s-76.5s (15.6s) - 8 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 7: 76.6s-91.2s (14.6s) - 7 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 8: 91.9s-101.8s (9.9s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 9: 101.8s-119.4s (17.6s) - 7 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 10: 119.5s-124.4s (5.0s) - 3 subtitles
+worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16] [Stage 1/3] 而??앹꽦 ?꾨즺: 11媛?worker-1  | [2026-01-21 12:08:40,968: INFO/ForkPoolWorker-16]   Cut 1: 2.5s-11.2s (8.7s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 2: 11.6s-20.2s (8.6s) - 3 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 3: 18.7s-27.3s (8.6s) - 4 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 4: 26.0s-34.9s (8.9s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 5: 34.9s-46.7s (11.8s) - 6 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 6: 47.4s-60.9s (13.5s) - 6 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 7: 61.0s-76.5s (15.6s) - 8 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 8: 76.6s-91.2s (14.6s) - 7 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 9: 91.9s-101.8s (9.9s) - 5 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 10: 101.8s-119.4s (17.6s) - 7 subtitles
+worker-1  | [2026-01-21 12:08:40,969: INFO/ForkPoolWorker-16]   Cut 11: 119.5s-124.4s (5.0s) - 3 subtitles
+worker-1  | [2026-01-21 12:08:41,024: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: sunrise coffee morning peaceful devotion warm light rays gol...
+worker-1  | [2026-01-21 12:08:42,120: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '醫뗭?
+worker-1  | ?꾩묠?낅땲?? ?곕━ 紐⑤뱺
+worker-1  | 苑껊룞??媛議??섎굹?섏쓽 留먯??쇰줈
+worker-1  | 醫뗭? ?꾩묠 蹂?..' ??寃?됱뼱: 'sunrise golden hour light rays nature hope clouds ethereal p...'
+worker-1  | [2026-01-21 12:08:42,120: INFO/ForkPoolWorker-16]   Cut 1 Visual Query: sunrise golden hour light rays nature hope clouds ethereal peaceful coffee morni... (type: abstract, confidence: 0.95)
+worker-1  | [2026-01-21 12:08:42,120: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption scr...
+worker-1  | [2026-01-21 12:08:43,079: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?ㅻ뒛 ?곕━媛
+worker-1  | ?④퍡 ?섎닃 留먯?? 留덇?蹂듭쓬 4??worker-1  | 35?덉뿉??41??留먯??낅땲??..' ??寃?됱뼱: 'sunrise light rays nature peaceful clouds golden ethereal co...'
+worker-1  | [2026-01-21 12:08:43,079: INFO/ForkPoolWorker-16]   Cut 2 Visual Query: sunrise light rays nature peaceful clouds golden ethereal contemplation divine... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:43,079: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption...
+worker-1  | [2026-01-21 12:08:44,039: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?곕━ ?덉닔?섍퍡??worker-1  | ?쒖옄?ㅺ낵 諛곕? ?怨?嫄대꼫?몄쑝濡?worker-1  | 嫄대꼫媛??땲?? 洹몃븣 ??愿?..' ??寃?됱뼱: 'storm clouds dramatic sky lightning waves water dark contemp...'
+worker-1  | [2026-01-21 12:08:44,039: INFO/ForkPoolWorker-16]   Cut 3 Visual Query: storm clouds dramatic sky lightning waves water dark contemplation powerful natu... (type: abstract, confidence: 0.95)
+worker-1  | [2026-01-21 12:08:44,039: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption...
+worker-1  | [2026-01-21 12:08:45,008: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?섏?留?worker-1  | ?덉닔?섍퍡?쒕뒗 二쇰Т?쒓퀬 怨꾩뀲?댁슂 ?곕━
+worker-1  | 紐⑤뱺 ?쒖옄?ㅼ씠 二쎌쓣源?worker-1  | ?먮젮?뚰븯...' ??寃?됱뼱: 'dramatic sky storm dark clouds contemplation cleansing renew...'
+worker-1  | [2026-01-21 12:08:45,008: INFO/ForkPoolWorker-16]   Cut 4 Visual Query: dramatic sky storm dark clouds contemplation cleansing renewal rain reflection s... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:45,008: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption...
+worker-1  | [2026-01-21 12:08:45,868: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?듬떟?댁꽌 洹몃뱾??worker-1  | ?덉닔?섏쓣 源⑥슫 嫄곗짛 ?? ?곕━
+worker-1  | ?욎뿉 洹몃윭??而ㅻ떎? 臾몄젣瑜?..' ??寃?됱뼱: 'golden hour light rays calm lake reflection sunrise peaceful...'
+worker-1  | [2026-01-21 12:08:45,869: INFO/ForkPoolWorker-16]   Cut 5 Visual Query: golden hour light rays calm lake reflection sunrise peaceful nature clouds ether... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:45,869: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption scr...
+worker-1  | [2026-01-21 12:08:46,657: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?섏?留??곕━
+worker-1  | ?덉닔?섏? 洹?紐⑤뱺 臾몄젣瑜?洹몃깷
+worker-1  | ?대쾭???먯? ?딆쑝??땲???ㅻ뒛
+worker-1  | ...' ??寃?됱뼱: 'sunrise light rays golden hour clouds dramatic sky serene pe...'
+worker-1  | [2026-01-21 12:08:46,657: INFO/ForkPoolWorker-16]   Cut 6 Visual Query: sunrise light rays golden hour clouds dramatic sky serene peaceful ethereal divi... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:46,657: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption mou...
+worker-1  | [2026-01-21 12:08:47,616: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?덈뒗 紐⑤뱺
+worker-1  | 臾몄젣瑜??곕━ ?덉닔?섍퍡??紐⑤몢
+worker-1  | ???좎옞?섍쾶 ?섏떎 以?worker-1  | 誘우뒿?덈떎. ...' ??寃?됱뼱: 'calm water reflection golden light rays serene contemplation...'
+worker-1  | [2026-01-21 12:08:47,616: INFO/ForkPoolWorker-16]   Cut 7 Visual Query: calm water reflection golden light rays serene contemplation storm clouds dramat... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:47,616: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption...
+worker-1  | [2026-01-21 12:08:48,479: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '洹몃젃二? 洹?worker-1  | 諛곗뿉???덉닔?섎룄 ?④퍡 ?怨?worker-1  | 怨꾩뀲?댁슂. ?덉닔?섍퍡???④퍡
+worker-1  | ?섏떊??..' ??寃?됱뼱: 'light rays golden hour serene nature clouds peaceful sunrise...'
+worker-1  | [2026-01-21 12:08:48,479: INFO/ForkPoolWorker-16]   Cut 8 Visual Query: light rays golden hour serene nature clouds peaceful sunrise ethereal divine... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:48,479: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption...
+worker-1  | [2026-01-21 12:08:49,241: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?곕━ ?욎뿉
+worker-1  | ?덈뒗 臾몄젣 ?곕━ ?덉닔?섍퍡??worker-1  | ?닿껐??二쇱떗?덈떎 ?섏?留??곕━
+worker-1  | ?덉닔??..' ??寃?됱뼱: 'sunrise golden light rays serene nature ethereal clouds peac...'
+worker-1  | [2026-01-21 12:08:49,241: INFO/ForkPoolWorker-16]   Cut 9 Visual Query: sunrise golden light rays serene nature ethereal clouds peaceful hope divine... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:49,241: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: light rays divine peaceful cross sunrise hope redemption gol...
+worker-1  | [2026-01-21 12:08:50,197: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?곕━ ?덉닔?섍퍡???④퍡
+worker-1  | ?섏떆嫄곕뱺???ㅻ뒛 ?곕━ ?덉닔?섍퍡??洹몃??
+worker-1  | ?④퍡 ?섍퀬 ...' ??寃?됱뼱: 'sunrise golden light rays nature peaceful ethereal calm wate...'
+worker-1  | [2026-01-21 12:08:50,197: INFO/ForkPoolWorker-16]   Cut 10 Visual Query: sunrise golden light rays nature peaceful ethereal calm water reflection serene ... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:50,197: INFO/ForkPoolWorker-16] [VisualDescGen] Bible hints found: harvest abundance light golden thankful peaceful...
+worker-1  | [2026-01-21 12:08:50,872: INFO/ForkPoolWorker-16] [VisualDescGen] ?먮쭑: '?곕━ 紐⑤뱺
+worker-1  | ?깅룄?몃뱾 二??덉뿉???됰났???섎（
+worker-1  | ?섏꽭?? 媛먯궗?⑸땲??...' ??寃?됱뼱: 'sunrise golden hour light rays nature peaceful clouds ethere...'
+worker-1  | [2026-01-21 12:08:50,872: INFO/ForkPoolWorker-16]   Cut 11 Visual Query: sunrise golden hour light rays nature peaceful clouds ethereal harvest abundance... (type: abstract, confidence: 0.90)
+worker-1  | [2026-01-21 12:08:50,999: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?select=id&church_id=eq.kkotdongsanchurch&status=eq.completed&order=created_at.desc&limit=10 "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:08:51,077: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/used_clips?select=clip_id&video_id=in.%2859a3456d-7768-4d40-8dd6-303440ae2fef%2C0369353b-88fc-4bf2-8589-24db6dadbbb4%2Cdd5d85cb-7bda-4758-a4c0-29029af050ce%2C8af618ec-bd45-4f12-814c-304c173e6887%2C6da50586-d053-42fe-a6b7-81703691977e%2C99a1a9fa-1f95-4556-9522-14bff3b4b4d4%2Cac33d54a-f1ae-4bef-bbfe-478d043b0d48%2Cda919edd-2f5a-4db9-a85c-fca78141f561%2C17453f7a-2e32-4d6a-83e7-7cd78dee0e7c%2Cb091b3cd-a14c-407f-8dd9-cca779eca25b%29 "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/blacklist_clips?select=clip_id "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] Added 1 blacklisted clips
+worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] Found 41 clips to filter (recent: 40, blacklist: 1)
+worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] 理쒓렐 10媛??곸긽?먯꽌 ?ъ슜???대┰: 41媛?worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden hour light rays nature hope clouds ethereal peaceful coffee morning (excluding 41 IDs)
+worker-1  | [2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):   light rays nature hope clouds ethereal peaceful coffee morning dark
+worker-1  | [2026-01-21 12:08:53,975: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:08:57,509: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:08:57,509: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33060982
+worker-1  | [2026-01-21 12:08:58,179: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:08:58,180: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33926133
+worker-1  | [2026-01-21 12:08:58,279: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:08:58,280: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=14118687
+worker-1  | [2026-01-21 12:08:58,862: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:08:58,863: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4999931
+worker-1  | [2026-01-21 12:08:59,456: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6554123
+worker-1  | [2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+worker-1  | [2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/40)
+worker-1  | [2026-01-21 12:08:59,459: INFO/ForkPoolWorker-16]   Cut 1: Video ID 33060982 (10s, verified: True)
+worker-1  | [2026-01-21 12:08:59,460: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise light rays nature peaceful clouds golden ethereal contemplation divine (excluding 42 IDs)
+worker-1  | [2026-01-21 12:08:59,460: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays nature peaceful clouds golden ethereal contemplation divine dark
+worker-1  | [2026-01-21 12:09:01,865: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:05,029: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:05,030: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4999931
+worker-1  | [2026-01-21 12:09:05,700: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:05,701: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197589
+worker-1  | [2026-01-21 12:09:06,284: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:06,285: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18292928
+worker-1  | [2026-01-21 12:09:06,670: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:06,671: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=8512893
+worker-1  | [2026-01-21 12:09:07,151: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:07,152: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=8512900
+worker-1  | [2026-01-21 12:09:07,152: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 3 passed (target: 3)
+worker-1  | [2026-01-21 12:09:07,153: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??3 passed, ??2 blocked (checked: 5/40)
+worker-1  | [2026-01-21 12:09:07,154: INFO/ForkPoolWorker-16]   Cut 2: Video ID 4999931 (16s, verified: True)
+worker-1  | [2026-01-21 12:09:07,155: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: storm clouds dramatic sky lightning waves water dark contemplation powerful nature light rays divine peaceful (excluding 43 IDs)
+worker-1  | [2026-01-21 12:09:07,155: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): storm clouds dramatic sky lightning waves water dark contemplation powerful nature light rays divine peaceful
+worker-1  | [2026-01-21 12:09:09,568: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:12,633: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:12,634: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=32943917
+worker-1  | [2026-01-21 12:09:14,262: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:14,263: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4073979
+worker-1  | [2026-01-21 12:09:14,363: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:14,364: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=3842675
+worker-1  | [2026-01-21 12:09:16,374: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:16,374: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=5898221
+worker-1  | [2026-01-21 12:09:17,334: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:17,334: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31701090
+worker-1  | [2026-01-21 12:09:17,335: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+worker-1  | [2026-01-21 12:09:17,335: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/38)
+worker-1  | [2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16]   Cut 3: Video ID 32943917 (7s, verified: True)
+worker-1  | [2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: dramatic sky storm dark clouds contemplation cleansing renewal rain reflection serene quiet light rays divine peaceful (excluding 44 IDs)
+worker-1  | [2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): dramatic sky storm dark clouds contemplation cleansing renewal rain reflection serene quiet light rays divine peaceful shadowy
+worker-1  | [2026-01-21 12:09:19,459: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:23,656: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:23,657: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13070236
+worker-1  | [2026-01-21 12:09:24,134: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:24,135: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13237022
+worker-1  | [2026-01-21 12:09:24,230: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:24,231: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33480318
+worker-1  | [2026-01-21 12:09:25,083: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:25,084: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33481722
+worker-1  | [2026-01-21 12:09:26,229: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:26,230: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=13843900
+worker-1  | [2026-01-21 12:09:26,230: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+worker-1  | [2026-01-21 12:09:26,231: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+worker-1  | [2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16]   Cut 4: Video ID 13070236 (15s, verified: True)
+worker-1  | [2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: golden hour light rays calm lake reflection sunrise peaceful nature clouds ethereal divine (excluding 45 IDs)
+worker-1  | [2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays calm lake reflection  peaceful nature clouds ethereal divine solemn
+worker-1  | [2026-01-21 12:09:28,626: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:32,549: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:32,550: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=9614022
+worker-1  | [2026-01-21 12:09:33,121: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:33,121: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=29278775
+worker-1  | [2026-01-21 12:09:33,600: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:33,601: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=12412312
+worker-1  | [2026-01-21 12:09:34,180: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:34,181: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31964084
+worker-1  | [2026-01-21 12:09:34,763: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:34,764: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10627045
+worker-1  | [2026-01-21 12:09:34,765: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+worker-1  | [2026-01-21 12:09:34,765: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+worker-1  | [2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16]   Cut 5: Video ID 9614022 (28s, verified: True)
+worker-1  | [2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise light rays golden hour clouds dramatic sky serene peaceful ethereal divine (excluding 46 IDs)
+worker-1  | [2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays  clouds dramatic sky serene peaceful ethereal divine reverent
+worker-1  | [2026-01-21 12:09:37,098: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:40,539: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:40,540: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197589
+worker-1  | [2026-01-21 12:09:40,794: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:40,795: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33737918
+worker-1  | [2026-01-21 12:09:41,305: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:41,306: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10654609
+worker-1  | [2026-01-21 12:09:41,403: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:41,404: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+worker-1  | [2026-01-21 12:09:41,500: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:41,501: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+worker-1  | [2026-01-21 12:09:41,502: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+worker-1  | [2026-01-21 12:09:41,502: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/39)
+worker-1  | [2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16]   Cut 6: Video ID 18197589 (30s, verified: True)
+worker-1  | [2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: calm water reflection golden light rays serene contemplation storm clouds dramatic sky peaceful mountains sunrise divine light (excluding 47 IDs)
+worker-1  | [2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): calm water reflection golden light rays serene contemplation storm clouds dramatic sky peaceful mountains  divine light solemn
+worker-1  | [2026-01-21 12:09:43,989: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:48,038: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:48,039: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10613908
+worker-1  | [2026-01-21 12:09:48,711: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:48,712: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13141961
+worker-1  | [2026-01-21 12:09:49,383: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:49,384: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+worker-1  | [2026-01-21 12:09:50,154: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:50,155: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10606526
+worker-1  | [2026-01-21 12:09:50,538: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10613633
+worker-1  | [2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+worker-1  | [2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/39)
+worker-1  | [2026-01-21 12:09:50,540: INFO/ForkPoolWorker-16]   Cut 7: Video ID 10613908 (60s, verified: True)
+worker-1  | [2026-01-21 12:09:50,541: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: light rays golden hour serene nature clouds peaceful sunrise ethereal divine (excluding 48 IDs)
+worker-1  | [2026-01-21 12:09:50,541: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): light rays  serene nature clouds peaceful  ethereal divine subdued
+worker-1  | [2026-01-21 12:09:52,919: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:09:55,535: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:55,536: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10654609
+worker-1  | [2026-01-21 12:09:57,075: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:57,077: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+worker-1  | [2026-01-21 12:09:57,835: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:57,836: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=12412312
+worker-1  | [2026-01-21 12:09:58,328: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:09:58,329: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+worker-1  | [2026-01-21 12:09:58,908: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:09:58,908: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=6284282
+worker-1  | [2026-01-21 12:09:58,909: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 3 passed (target: 3)
+worker-1  | [2026-01-21 12:09:58,910: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??3 passed, ??2 blocked (checked: 5/38)
+worker-1  | [2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16]   Cut 8: Video ID 10654609 (5s, verified: True)
+worker-1  | [2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden light rays serene nature ethereal clouds peaceful hope divine (excluding 49 IDs)
+worker-1  | [2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  golden light rays serene nature ethereal clouds peaceful hope divine dark
+worker-1  | [2026-01-21 12:10:00,593: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:10:03,218: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:03,219: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33926133
+worker-1  | [2026-01-21 12:10:04,271: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:04,272: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197585
+worker-1  | [2026-01-21 12:10:04,560: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:04,561: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=28492415
+worker-1  | [2026-01-21 12:10:05,319: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:05,320: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197593
+worker-1  | [2026-01-21 12:10:06,267: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:06,268: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6989014
+worker-1  | [2026-01-21 12:10:06,269: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+worker-1  | [2026-01-21 12:10:06,269: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/37)
+worker-1  | [2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16]   Cut 9: Video ID 33926133 (52s, verified: True)
+worker-1  | [2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden light rays nature peaceful ethereal calm water reflection serene sky clouds divine (excluding 50 IDs)
+worker-1  | [2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  golden light rays nature peaceful ethereal calm water reflection serene sky clouds divine
+worker-1  | [2026-01-21 12:10:08,388: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:10:10,832: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:10,832: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+worker-1  | [2026-01-21 12:10:10,918: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:10,919: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6989014
+worker-1  | [2026-01-21 12:10:12,093: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:12,094: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31964084
+worker-1  | [2026-01-21 12:10:12,714: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:10:12,715: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=35016539
+worker-1  | [2026-01-21 12:10:13,852: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:13,852: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=29278775
+worker-1  | [2026-01-21 12:10:13,853: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+worker-1  | [2026-01-21 12:10:13,853: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+worker-1  | [2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16]   Cut 10: Video ID 1452688 (9s, verified: True)
+worker-1  | [2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden hour light rays nature peaceful clouds ethereal harvest abundance (excluding 51 IDs)
+worker-1  | [2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):   light rays nature peaceful clouds ethereal harvest abundance subdued
+worker-1  | [2026-01-21 12:10:16,115: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+worker-1  | [2026-01-21 12:10:18,876: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+worker-1  | [2026-01-21 12:10:18,876: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=6284282
+worker-1  | [2026-01-21 12:10:20,040: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:20,041: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=5359969
+worker-1  | [2026-01-21 12:10:20,383: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:20,384: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4402585
+worker-1  | [2026-01-21 12:10:20,909: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:20,909: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=7646517
+worker-1  | [2026-01-21 12:10:21,962: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+worker-1  | [2026-01-21 12:10:21,963: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+worker-1  | [2026-01-21 12:10:21,963: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+worker-1  | [2026-01-21 12:10:21,964: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/36)
+worker-1  | [2026-01-21 12:10:21,964: INFO/ForkPoolWorker-16]   Cut 11: Video ID 5359969 (29s, verified: True)
+worker-1  | [2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] ?곸긽 留ㅼ묶 ?꾨즺: 11媛?而?worker-1  | [2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] clips_metadata ?앹꽦 ?꾨즺: 11媛?worker-1  | [2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] subtitle_clips ??selected_clips 蹂???꾨즺
+worker-1  | [2026-01-21 12:10:22,472: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?select=thumbnail_layout%2C%20title&id=eq.423effa9-3b33-4c2c-a078-055d91647252 "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:10:22,475: INFO/ForkPoolWorker-16] [Step 3] VideoClipProcessor濡??대┰ ?꾩쿂由??쒖옉
+worker-1  | [2026-01-21 12:10:22,483: INFO/ForkPoolWorker-16] VideoClipProcessor initialized with temp_dir: /tmp/qt_video_compositor
+worker-1  | [2026-01-21 12:10:22,545: INFO/ForkPoolWorker-16] FFmpeg found
+worker-1  | [2026-01-21 12:10:22,545: INFO/ForkPoolWorker-16] [VideoClipProcessor] Starting clip processing for 11 segments
+worker-1  | [2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Processing segment 1/11: subtitle_based (8.7s)
+worker-1  | [2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Processing single video with loop: 10.0s 횞 1 times
+worker-1  | [2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/33060982/140...
+worker-1  | [2026-01-21 12:10:22,700: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg1_src.mp4
+worker-1  | [2026-01-21 12:10:22,701: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 1
+worker-1  | [2026-01-21 12:10:23,305: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 1
+worker-1  | [2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Processing segment 2/11: subtitle_based (8.6s)
+worker-1  | [2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Processing single video with trim: 8.6s
+worker-1  | [2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/4999931/4999...
+worker-1  | [2026-01-21 12:10:23,565: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg2_src.mp4
+worker-1  | [2026-01-21 12:10:23,566: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 2
+worker-1  | [2026-01-21 12:10:24,781: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 2
+worker-1  | [2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Processing segment 3/11: subtitle_based (8.6s)
+worker-1  | [2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Processing single video with loop: 7.0s 횞 2 times
+worker-1  | [2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/32943917/140...
+worker-1  | [2026-01-21 12:10:25,194: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg3_src.mp4
+worker-1  | [2026-01-21 12:10:25,194: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 3
+worker-1  | [2026-01-21 12:10:26,139: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 3
+worker-1  | [2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Processing segment 4/11: subtitle_based (8.9s)
+worker-1  | [2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Processing single video with trim: 8.9s
+worker-1  | [2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/13070236/130...
+worker-1  | [2026-01-21 12:10:26,584: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg4_src.mp4
+worker-1  | [2026-01-21 12:10:26,584: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 4
+worker-1  | [2026-01-21 12:10:29,299: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 4
+worker-1  | [2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Processing segment 5/11: subtitle_based (11.8s)
+worker-1  | [2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Processing single video with trim: 11.8s
+worker-1  | [2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/9614022/9614...
+worker-1  | [2026-01-21 12:10:31,451: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg5_src.mp4
+worker-1  | [2026-01-21 12:10:31,452: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 5
+worker-1  | [2026-01-21 12:10:32,524: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 5
+worker-1  | [2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Processing segment 6/11: subtitle_based (13.5s)
+worker-1  | [2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Processing single video with trim: 13.5s
+worker-1  | [2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/18197589/181...
+worker-1  | [2026-01-21 12:10:32,987: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg6_src.mp4
+worker-1  | [2026-01-21 12:10:32,988: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 6
+worker-1  | [2026-01-21 12:10:35,563: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 6
+worker-1  | [2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Processing segment 7/11: subtitle_based (15.6s)
+worker-1  | [2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Processing single video with trim: 15.6s
+worker-1  | [2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/10613908/106...
+worker-1  | [2026-01-21 12:10:40,071: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg7_src.mp4
+worker-1  | [2026-01-21 12:10:40,072: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 7
+worker-1  | [2026-01-21 12:10:43,738: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 7
+worker-1  | [2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Processing segment 8/11: subtitle_based (14.6s)
+worker-1  | [2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Processing single video with loop: 5.0s 횞 3 times
+worker-1  | [2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/10654609/106...
+worker-1  | [2026-01-21 12:10:44,099: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg8_src.mp4
+worker-1  | [2026-01-21 12:10:44,100: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 8
+worker-1  | [2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 8
+worker-1  | [2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Processing segment 9/11: subtitle_based (9.9s)
+worker-1  | [2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Processing single video with trim: 9.9s
+worker-1  | [2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/33926133/143...
+worker-1  | [2026-01-21 12:10:49,425: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg9_src.mp4
+worker-1  | [2026-01-21 12:10:49,426: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 9
+worker-1  | [2026-01-21 12:10:49,847: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 9
+worker-1  | [2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Processing segment 10/11: subtitle_based (17.6s)
+worker-1  | [2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Processing single video with loop: 9.0s 횞 2 times
+worker-1  | [2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/1452688/1452...
+worker-1  | [2026-01-21 12:10:49,994: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg10_src.mp4
+worker-1  | [2026-01-21 12:10:49,995: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 10
+worker-1  | [2026-01-21 12:10:51,060: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 10
+worker-1  | [2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Processing segment 11/11: subtitle_based (5.0s)
+worker-1  | [2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Processing single video with trim: 5.0s
+worker-1  | [2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/5359969/5359...
+worker-1  | [2026-01-21 12:10:52,785: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg11_src.mp4
+worker-1  | [2026-01-21 12:10:52,786: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 11
+worker-1  | [2026-01-21 12:10:54,711: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 11
+worker-1  | [2026-01-21 12:10:54,711: INFO/ForkPoolWorker-16] [VideoClipProcessor] Concatenating all segments
+worker-1  | [2026-01-21 12:10:54,712: INFO/ForkPoolWorker-16] Concatenating 11 segments
+worker-1  | [2026-01-21 12:10:54,712: INFO/ForkPoolWorker-16] Running FFmpeg: concat all segments
+worker-1  | [2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] FFmpeg success: concat all segments
+worker-1  | [2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] [VideoClipProcessor] Delegating to video.py for final composition
+worker-1  | [2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] Composing video: 1 clips, total clip duration: 122.674s, audio duration: 126s
+worker-1  | [2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] Concat clips: 1 clips, durations: [122.674], total: 122.674s
+worker-1  | [2026-01-21 12:11:34,507: INFO/ForkPoolWorker-16] Selected BGM: worship_ambient.m4a
+worker-1  | [2026-01-21 12:11:37,236: INFO/ForkPoolWorker-16] Parsed 57 subtitles from /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:11:37,239: INFO/ForkPoolWorker-16] Parsed 57 subtitles from /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:11:49,008: INFO/ForkPoolWorker-16] Rendered 57 subtitle images
+worker-1  | [2026-01-21 12:11:49,008: INFO/ForkPoolWorker-16] Adding 57 PIL subtitles with overlay
+worker-1  | [2026-01-21 12:12:21,950: INFO/ForkPoolWorker-16] Video composed: /tmp/qt-video/3c8ce98a-4caf-445a-b018-b22f5e34b5bc.mp4
+worker-1  | [2026-01-21 12:12:21,970: INFO/ForkPoolWorker-16] [VideoClipProcessor] Final video saved to /tmp/qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+worker-1  | [2026-01-21 12:12:21,971: INFO/ForkPoolWorker-16] [Step 3] VideoCompositor ?⑹꽦 ?꾨즺: 11媛?援ш컙, 珥?122.7珥?worker-1  | [2026-01-21 12:12:21,991: INFO/ForkPoolWorker-16] [Step 3/5] ?곸긽 ?⑹꽦 ?꾨즺: /tmp/qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+worker-1  | [2026-01-21 12:12:22,156: INFO/ForkPoolWorker-16] Uploading to R2: videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+worker-1  | [2026-01-21 12:12:26,281: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+worker-1  | [2026-01-21 12:12:26,281: INFO/ForkPoolWorker-16] Uploading to R2: srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:12:27,847: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+worker-1  | [2026-01-21 12:12:27,847: INFO/ForkPoolWorker-16] Uploading to R2: audio/55ae2212-1e1f-4047-908d-a2523ca22a1c_65b9984b-7ec3-4e4a-8d28-805a70b8187f.m4a
+worker-1  | [2026-01-21 12:12:28,554: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/audio/55ae2212-1e1f-4047-908d-a2523ca22a1c_65b9984b-7ec3-4e4a-8d28-805a70b8187f.m4a
+worker-1  | [2026-01-21 12:12:28,554: INFO/ForkPoolWorker-16] [Step 4/5] R2 ?낅줈???꾨즺 (video, srt, audio, base_video)
+worker-1  | [2026-01-21 12:12:29,440: INFO/ForkPoolWorker-16] HTTP Request: PATCH https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?id=eq.423effa9-3b33-4c2c-a078-055d91647252 "HTTP/2 200 OK"
+worker-1  | [2026-01-21 12:12:29,560: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:29,639: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:29,760: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:29,843: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:29,922: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:29,998: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,076: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,147: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,217: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,296: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,369: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+worker-1  | [2026-01-21 12:12:30,558: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/used_clips?columns=%22video_id%22%2C%22clip_url%22%2C%22clip_id%22%2C%22church_id%22 "HTTP/2 201 Created"
+worker-1  | [2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [ClipHistory] Recorded 11 clips for video 423effa9
+worker-1  | [2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [ClipHistory] ?ъ슜???대┰ 11媛?湲곕줉 ?꾨즺
+worker-1  | [2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [Step 5/5] 硫뷀??곗씠??????꾨즺
+worker-1  | [2026-01-21 12:12:30,575: INFO/ForkPoolWorker-16] Task a3d9cb5b-bb95-43fe-a459-18345a661f9f completed successfully
+worker-1  | [2026-01-21 12:12:30,575: INFO/ForkPoolWorker-16] Task app.tasks.process_video_task[a3d9cb5b-bb95-43fe-a459-18345a661f9f] succeeded in 233.10197684104787s: {'status': 'completed', 'video_id': '423effa9-3b33-4c2c-a078-055d91647252', 'video_url': 'https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4', 'srt_url': 'https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt', 'duration': 126, 'clips_used': ['pexels_33060982', 'pexels_4999931', 'pexels_32943917', 'pexels_13070236', 'pexels_9614022', 'pexels_18197589', 'pexels_10613908', 'pexels_10654609', 'pexels_33926133', 'pexels_1452688', 'pexels_5359969']}

@@ -9,3 +9,4 @@ export { Sidebar } from "./Sidebar";
 export { DashboardLayout } from "./DashboardLayout";
 export { ThumbnailSettingsForm, type ThumbnailSettings } from "./ThumbnailSettings";
 export { default as ThumbnailEditor, type ThumbnailLayout } from "./ThumbnailEditor";
+export { default as Footer } from "./Footer";

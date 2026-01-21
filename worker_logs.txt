@@ -1,0 +1,308 @@
+﻿docker-compose : time="2026-01-21T21:19:59+09:00" level=warning msg="C:\\U
+sers\\user\\Desktop\\gpt\\n8n-make\\kmong_work\\qt-make\\qt-video-saas\\do
+cker-compose.yml: the attribute `version` is obsolete, it will be ignored,
+ please remove it to avoid potential confusion"
+위치 줄:1 문자:1
++ docker-compose logs worker --tail=300 --no-log-prefix 2>&1 | Out-File ..
+.
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (time="2026-01-2...tial confu 
+   sion":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+?깅룄?몃뱾 二??덉뿉???됰났???섎（
+?섏꽭?? 媛먯궗?⑸땲??...' ??寃?됱뼱: 'sunrise golden hour light rays nature peaceful clouds ethere...'
+[2026-01-21 12:08:50,872: INFO/ForkPoolWorker-16]   Cut 11 Visual Query: sunrise golden hour light rays nature peaceful clouds ethereal harvest abundance... (type: abstract, confidence: 0.90)
+[2026-01-21 12:08:50,999: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?select=id&church_id=eq.kkotdongsanchurch&status=eq.completed&order=created_at.desc&limit=10 "HTTP/2 200 OK"
+[2026-01-21 12:08:51,077: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/used_clips?select=clip_id&video_id=in.%2859a3456d-7768-4d40-8dd6-303440ae2fef%2C0369353b-88fc-4bf2-8589-24db6dadbbb4%2Cdd5d85cb-7bda-4758-a4c0-29029af050ce%2C8af618ec-bd45-4f12-814c-304c173e6887%2C6da50586-d053-42fe-a6b7-81703691977e%2C99a1a9fa-1f95-4556-9522-14bff3b4b4d4%2Cac33d54a-f1ae-4bef-bbfe-478d043b0d48%2Cda919edd-2f5a-4db9-a85c-fca78141f561%2C17453f7a-2e32-4d6a-83e7-7cd78dee0e7c%2Cb091b3cd-a14c-407f-8dd9-cca779eca25b%29 "HTTP/2 200 OK"
+[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/blacklist_clips?select=clip_id "HTTP/2 200 OK"
+[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] Added 1 blacklisted clips
+[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] Found 41 clips to filter (recent: 40, blacklist: 1)
+[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [ClipHistory] 理쒓렐 10媛??곸긽?먯꽌 ?ъ슜???대┰: 41媛?[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden hour light rays nature hope clouds ethereal peaceful coffee morning (excluding 41 IDs)
+[2026-01-21 12:08:51,121: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):   light rays nature hope clouds ethereal peaceful coffee morning dark
+[2026-01-21 12:08:53,975: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:08:57,509: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:08:57,509: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33060982
+[2026-01-21 12:08:58,179: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:08:58,180: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33926133
+[2026-01-21 12:08:58,279: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:08:58,280: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=14118687
+[2026-01-21 12:08:58,862: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:08:58,863: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4999931
+[2026-01-21 12:08:59,456: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6554123
+[2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+[2026-01-21 12:08:59,458: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/40)
+[2026-01-21 12:08:59,459: INFO/ForkPoolWorker-16]   Cut 1: Video ID 33060982 (10s, verified: True)
+[2026-01-21 12:08:59,460: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise light rays nature peaceful clouds golden ethereal contemplation divine (excluding 42 IDs)
+[2026-01-21 12:08:59,460: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays nature peaceful clouds golden ethereal contemplation divine dark
+[2026-01-21 12:09:01,865: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:05,029: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:05,030: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4999931
+[2026-01-21 12:09:05,700: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:05,701: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197589
+[2026-01-21 12:09:06,284: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:06,285: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18292928
+[2026-01-21 12:09:06,670: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:06,671: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=8512893
+[2026-01-21 12:09:07,151: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:07,152: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=8512900
+[2026-01-21 12:09:07,152: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 3 passed (target: 3)
+[2026-01-21 12:09:07,153: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??3 passed, ??2 blocked (checked: 5/40)
+[2026-01-21 12:09:07,154: INFO/ForkPoolWorker-16]   Cut 2: Video ID 4999931 (16s, verified: True)
+[2026-01-21 12:09:07,155: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: storm clouds dramatic sky lightning waves water dark contemplation powerful nature light rays divine peaceful (excluding 43 IDs)
+[2026-01-21 12:09:07,155: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): storm clouds dramatic sky lightning waves water dark contemplation powerful nature light rays divine peaceful
+[2026-01-21 12:09:09,568: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:12,633: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:12,634: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=32943917
+[2026-01-21 12:09:14,262: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:14,263: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4073979
+[2026-01-21 12:09:14,363: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:14,364: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=3842675
+[2026-01-21 12:09:16,374: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:16,374: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=5898221
+[2026-01-21 12:09:17,334: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:17,334: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31701090
+[2026-01-21 12:09:17,335: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+[2026-01-21 12:09:17,335: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/38)
+[2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16]   Cut 3: Video ID 32943917 (7s, verified: True)
+[2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: dramatic sky storm dark clouds contemplation cleansing renewal rain reflection serene quiet light rays divine peaceful (excluding 44 IDs)
+[2026-01-21 12:09:17,337: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): dramatic sky storm dark clouds contemplation cleansing renewal rain reflection serene quiet light rays divine peaceful shadowy
+[2026-01-21 12:09:19,459: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:23,656: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:23,657: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13070236
+[2026-01-21 12:09:24,134: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:24,135: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13237022
+[2026-01-21 12:09:24,230: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:24,231: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33480318
+[2026-01-21 12:09:25,083: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:25,084: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33481722
+[2026-01-21 12:09:26,229: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:26,230: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=13843900
+[2026-01-21 12:09:26,230: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+[2026-01-21 12:09:26,231: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+[2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16]   Cut 4: Video ID 13070236 (15s, verified: True)
+[2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: golden hour light rays calm lake reflection sunrise peaceful nature clouds ethereal divine (excluding 45 IDs)
+[2026-01-21 12:09:26,232: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays calm lake reflection  peaceful nature clouds ethereal divine solemn
+[2026-01-21 12:09:28,626: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:32,549: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:32,550: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=9614022
+[2026-01-21 12:09:33,121: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:33,121: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=29278775
+[2026-01-21 12:09:33,600: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:33,601: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=12412312
+[2026-01-21 12:09:34,180: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:34,181: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31964084
+[2026-01-21 12:09:34,763: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:34,764: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10627045
+[2026-01-21 12:09:34,765: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+[2026-01-21 12:09:34,765: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+[2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16]   Cut 5: Video ID 9614022 (28s, verified: True)
+[2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise light rays golden hour clouds dramatic sky serene peaceful ethereal divine (excluding 46 IDs)
+[2026-01-21 12:09:34,767: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  light rays  clouds dramatic sky serene peaceful ethereal divine reverent
+[2026-01-21 12:09:37,098: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:40,539: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:40,540: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197589
+[2026-01-21 12:09:40,794: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:40,795: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33737918
+[2026-01-21 12:09:41,305: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:41,306: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10654609
+[2026-01-21 12:09:41,403: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:41,404: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+[2026-01-21 12:09:41,500: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:41,501: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+[2026-01-21 12:09:41,502: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+[2026-01-21 12:09:41,502: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/39)
+[2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16]   Cut 6: Video ID 18197589 (30s, verified: True)
+[2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: calm water reflection golden light rays serene contemplation storm clouds dramatic sky peaceful mountains sunrise divine light (excluding 47 IDs)
+[2026-01-21 12:09:41,503: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): calm water reflection golden light rays serene contemplation storm clouds dramatic sky peaceful mountains  divine light solemn
+[2026-01-21 12:09:43,989: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:48,038: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:48,039: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10613908
+[2026-01-21 12:09:48,711: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:48,712: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=13141961
+[2026-01-21 12:09:49,383: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:49,384: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+[2026-01-21 12:09:50,154: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:50,155: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10606526
+[2026-01-21 12:09:50,538: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10613633
+[2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+[2026-01-21 12:09:50,539: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/39)
+[2026-01-21 12:09:50,540: INFO/ForkPoolWorker-16]   Cut 7: Video ID 10613908 (60s, verified: True)
+[2026-01-21 12:09:50,541: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: light rays golden hour serene nature clouds peaceful sunrise ethereal divine (excluding 48 IDs)
+[2026-01-21 12:09:50,541: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone): light rays  serene nature clouds peaceful  ethereal divine subdued
+[2026-01-21 12:09:52,919: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:09:55,535: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:55,536: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=10654609
+[2026-01-21 12:09:57,075: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:57,077: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+[2026-01-21 12:09:57,835: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:57,836: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=12412312
+[2026-01-21 12:09:58,328: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:09:58,329: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+[2026-01-21 12:09:58,908: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:09:58,908: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=6284282
+[2026-01-21 12:09:58,909: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 3 passed (target: 3)
+[2026-01-21 12:09:58,910: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??3 passed, ??2 blocked (checked: 5/38)
+[2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16]   Cut 8: Video ID 10654609 (5s, verified: True)
+[2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden light rays serene nature ethereal clouds peaceful hope divine (excluding 49 IDs)
+[2026-01-21 12:09:58,911: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  golden light rays serene nature ethereal clouds peaceful hope divine dark
+[2026-01-21 12:10:00,593: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:10:03,218: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:03,219: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=33926133
+[2026-01-21 12:10:04,271: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:04,272: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197585
+[2026-01-21 12:10:04,560: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:04,561: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=28492415
+[2026-01-21 12:10:05,319: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:05,320: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=18197593
+[2026-01-21 12:10:06,267: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:06,268: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6989014
+[2026-01-21 12:10:06,269: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 5 passed (target: 3)
+[2026-01-21 12:10:06,269: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??5 passed, ??0 blocked (checked: 5/37)
+[2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16]   Cut 9: Video ID 33926133 (52s, verified: True)
+[2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden light rays nature peaceful ethereal calm water reflection serene sky clouds divine (excluding 50 IDs)
+[2026-01-21 12:10:06,270: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):  golden light rays nature peaceful ethereal calm water reflection serene sky clouds divine
+[2026-01-21 12:10:08,388: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:10:10,832: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:10,832: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=1452688
+[2026-01-21 12:10:10,918: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:10,919: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=6989014
+[2026-01-21 12:10:12,093: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:12,094: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=31964084
+[2026-01-21 12:10:12,714: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:10:12,715: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=35016539
+[2026-01-21 12:10:13,852: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:13,852: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=29278775
+[2026-01-21 12:10:13,853: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+[2026-01-21 12:10:13,853: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/39)
+[2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16]   Cut 10: Video ID 1452688 (9s, verified: True)
+[2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16] [PexelsSearch] Visual query: sunrise golden hour light rays nature peaceful clouds ethereal harvest abundance (excluding 51 IDs)
+[2026-01-21 12:10:13,854: INFO/ForkPoolWorker-16] [PexelsSearch] Modified query (dark tone):   light rays nature peaceful clouds ethereal harvest abundance subdued
+[2026-01-21 12:10:16,115: INFO/ForkPoolWorker-16] [PexelsSearch] Batch 1: checking 5 videos (verified: 0/3)
+[2026-01-21 12:10:18,876: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??REJECT (??BLOCKED)
+[2026-01-21 12:10:18,876: INFO/ForkPoolWorker-16] [PexelsSearch] ??REJECT: ID=6284282
+[2026-01-21 12:10:20,040: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:20,041: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=5359969
+[2026-01-21 12:10:20,383: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:20,384: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=4402585
+[2026-01-21 12:10:20,909: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:20,909: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=7646517
+[2026-01-21 12:10:21,962: INFO/ForkPoolWorker-16] [Gemini Vision] it=crop&h=630&w=1200 ??ACCEPT (??PASS)
+[2026-01-21 12:10:21,963: INFO/ForkPoolWorker-16] [PexelsSearch] ??ACCEPT: ID=35016539
+[2026-01-21 12:10:21,963: INFO/ForkPoolWorker-16] [PexelsSearch] Early stop: 4 passed (target: 3)
+[2026-01-21 12:10:21,964: INFO/ForkPoolWorker-16] [PexelsSearch] Result: ??4 passed, ??1 blocked (checked: 5/36)
+[2026-01-21 12:10:21,964: INFO/ForkPoolWorker-16]   Cut 11: Video ID 5359969 (29s, verified: True)
+[2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] ?곸긽 留ㅼ묶 ?꾨즺: 11媛?而?[2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] clips_metadata ?앹꽦 ?꾨즺: 11媛?[2026-01-21 12:10:21,965: INFO/ForkPoolWorker-16] [Stage 3/3] subtitle_clips ??selected_clips 蹂???꾨즺
+[2026-01-21 12:10:22,472: INFO/ForkPoolWorker-16] HTTP Request: GET https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?select=thumbnail_layout%2C%20title&id=eq.423effa9-3b33-4c2c-a078-055d91647252 "HTTP/2 200 OK"
+[2026-01-21 12:10:22,475: INFO/ForkPoolWorker-16] [Step 3] VideoClipProcessor濡??대┰ ?꾩쿂由??쒖옉
+[2026-01-21 12:10:22,483: INFO/ForkPoolWorker-16] VideoClipProcessor initialized with temp_dir: /tmp/qt_video_compositor
+[2026-01-21 12:10:22,545: INFO/ForkPoolWorker-16] FFmpeg found
+[2026-01-21 12:10:22,545: INFO/ForkPoolWorker-16] [VideoClipProcessor] Starting clip processing for 11 segments
+[2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Processing segment 1/11: subtitle_based (8.7s)
+[2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Processing single video with loop: 10.0s 횞 1 times
+[2026-01-21 12:10:22,546: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/33060982/140...
+[2026-01-21 12:10:22,700: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg1_src.mp4
+[2026-01-21 12:10:22,701: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 1
+[2026-01-21 12:10:23,305: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 1
+[2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Processing segment 2/11: subtitle_based (8.6s)
+[2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Processing single video with trim: 8.6s
+[2026-01-21 12:10:23,306: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/4999931/4999...
+[2026-01-21 12:10:23,565: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg2_src.mp4
+[2026-01-21 12:10:23,566: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 2
+[2026-01-21 12:10:24,781: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 2
+[2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Processing segment 3/11: subtitle_based (8.6s)
+[2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Processing single video with loop: 7.0s 횞 2 times
+[2026-01-21 12:10:24,782: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/32943917/140...
+[2026-01-21 12:10:25,194: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg3_src.mp4
+[2026-01-21 12:10:25,194: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 3
+[2026-01-21 12:10:26,139: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 3
+[2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Processing segment 4/11: subtitle_based (8.9s)
+[2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Processing single video with trim: 8.9s
+[2026-01-21 12:10:26,140: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/13070236/130...
+[2026-01-21 12:10:26,584: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg4_src.mp4
+[2026-01-21 12:10:26,584: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 4
+[2026-01-21 12:10:29,299: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 4
+[2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Processing segment 5/11: subtitle_based (11.8s)
+[2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Processing single video with trim: 11.8s
+[2026-01-21 12:10:29,300: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/9614022/9614...
+[2026-01-21 12:10:31,451: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg5_src.mp4
+[2026-01-21 12:10:31,452: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 5
+[2026-01-21 12:10:32,524: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 5
+[2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Processing segment 6/11: subtitle_based (13.5s)
+[2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Processing single video with trim: 13.5s
+[2026-01-21 12:10:32,525: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/18197589/181...
+[2026-01-21 12:10:32,987: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg6_src.mp4
+[2026-01-21 12:10:32,988: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 6
+[2026-01-21 12:10:35,563: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 6
+[2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Processing segment 7/11: subtitle_based (15.6s)
+[2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Processing single video with trim: 15.6s
+[2026-01-21 12:10:35,565: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/10613908/106...
+[2026-01-21 12:10:40,071: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg7_src.mp4
+[2026-01-21 12:10:40,072: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 7
+[2026-01-21 12:10:43,738: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 7
+[2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Processing segment 8/11: subtitle_based (14.6s)
+[2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Processing single video with loop: 5.0s 횞 3 times
+[2026-01-21 12:10:43,739: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/10654609/106...
+[2026-01-21 12:10:44,099: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg8_src.mp4
+[2026-01-21 12:10:44,100: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 8
+[2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 8
+[2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Processing segment 9/11: subtitle_based (9.9s)
+[2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Processing single video with trim: 9.9s
+[2026-01-21 12:10:49,234: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/33926133/143...
+[2026-01-21 12:10:49,425: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg9_src.mp4
+[2026-01-21 12:10:49,426: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 9
+[2026-01-21 12:10:49,847: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 9
+[2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Processing segment 10/11: subtitle_based (17.6s)
+[2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Processing single video with loop: 9.0s 횞 2 times
+[2026-01-21 12:10:49,848: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/1452688/1452...
+[2026-01-21 12:10:49,994: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg10_src.mp4
+[2026-01-21 12:10:49,995: INFO/ForkPoolWorker-16] Running FFmpeg: loop segment 10
+[2026-01-21 12:10:51,060: INFO/ForkPoolWorker-16] FFmpeg success: loop segment 10
+[2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Processing segment 11/11: subtitle_based (5.0s)
+[2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Processing single video with trim: 5.0s
+[2026-01-21 12:10:51,061: INFO/ForkPoolWorker-16] Downloading video from https://videos.pexels.com/video-files/5359969/5359...
+[2026-01-21 12:10:52,785: INFO/ForkPoolWorker-16] Downloaded to /tmp/qt_video_compositor/seg11_src.mp4
+[2026-01-21 12:10:52,786: INFO/ForkPoolWorker-16] Running FFmpeg: trim segment 11
+[2026-01-21 12:10:54,711: INFO/ForkPoolWorker-16] FFmpeg success: trim segment 11
+[2026-01-21 12:10:54,711: INFO/ForkPoolWorker-16] [VideoClipProcessor] Concatenating all segments
+[2026-01-21 12:10:54,712: INFO/ForkPoolWorker-16] Concatenating 11 segments
+[2026-01-21 12:10:54,712: INFO/ForkPoolWorker-16] Running FFmpeg: concat all segments
+[2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] FFmpeg success: concat all segments
+[2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] [VideoClipProcessor] Delegating to video.py for final composition
+[2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] Composing video: 1 clips, total clip duration: 122.674s, audio duration: 126s
+[2026-01-21 12:11:02,928: INFO/ForkPoolWorker-16] Concat clips: 1 clips, durations: [122.674], total: 122.674s
+[2026-01-21 12:11:34,507: INFO/ForkPoolWorker-16] Selected BGM: worship_ambient.m4a
+[2026-01-21 12:11:37,236: INFO/ForkPoolWorker-16] Parsed 57 subtitles from /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+[2026-01-21 12:11:37,239: INFO/ForkPoolWorker-16] Parsed 57 subtitles from /tmp/65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+[2026-01-21 12:11:49,008: INFO/ForkPoolWorker-16] Rendered 57 subtitle images
+[2026-01-21 12:11:49,008: INFO/ForkPoolWorker-16] Adding 57 PIL subtitles with overlay
+[2026-01-21 12:12:21,950: INFO/ForkPoolWorker-16] Video composed: /tmp/qt-video/3c8ce98a-4caf-445a-b018-b22f5e34b5bc.mp4
+[2026-01-21 12:12:21,970: INFO/ForkPoolWorker-16] [VideoClipProcessor] Final video saved to /tmp/qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+[2026-01-21 12:12:21,971: INFO/ForkPoolWorker-16] [Step 3] VideoCompositor ?⑹꽦 ?꾨즺: 11媛?援ш컙, 珥?122.7珥?[2026-01-21 12:12:21,991: INFO/ForkPoolWorker-16] [Step 3/5] ?곸긽 ?⑹꽦 ?꾨즺: /tmp/qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+[2026-01-21 12:12:22,156: INFO/ForkPoolWorker-16] Uploading to R2: videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+[2026-01-21 12:12:26,281: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4
+[2026-01-21 12:12:26,281: INFO/ForkPoolWorker-16] Uploading to R2: srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+[2026-01-21 12:12:27,847: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt
+[2026-01-21 12:12:27,847: INFO/ForkPoolWorker-16] Uploading to R2: audio/55ae2212-1e1f-4047-908d-a2523ca22a1c_65b9984b-7ec3-4e4a-8d28-805a70b8187f.m4a
+[2026-01-21 12:12:28,554: INFO/ForkPoolWorker-16] Upload complete: https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/audio/55ae2212-1e1f-4047-908d-a2523ca22a1c_65b9984b-7ec3-4e4a-8d28-805a70b8187f.m4a
+[2026-01-21 12:12:28,554: INFO/ForkPoolWorker-16] [Step 4/5] R2 ?낅줈???꾨즺 (video, srt, audio, base_video)
+[2026-01-21 12:12:29,440: INFO/ForkPoolWorker-16] HTTP Request: PATCH https://hwbergespqaxpuxseide.supabase.co/rest/v1/videos?id=eq.423effa9-3b33-4c2c-a078-055d91647252 "HTTP/2 200 OK"
+[2026-01-21 12:12:29,560: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:29,639: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:29,760: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:29,843: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:29,922: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:29,998: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,076: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,147: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,217: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,296: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,369: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/rpc/increment_clip_used_count "HTTP/2 204 No Content"
+[2026-01-21 12:12:30,558: INFO/ForkPoolWorker-16] HTTP Request: POST https://hwbergespqaxpuxseide.supabase.co/rest/v1/used_clips?columns=%22video_id%22%2C%22clip_url%22%2C%22clip_id%22%2C%22church_id%22 "HTTP/2 201 Created"
+[2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [ClipHistory] Recorded 11 clips for video 423effa9
+[2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [ClipHistory] ?ъ슜???대┰ 11媛?湲곕줉 ?꾨즺
+[2026-01-21 12:12:30,559: INFO/ForkPoolWorker-16] [Step 5/5] 硫뷀??곗씠??????꾨즺
+[2026-01-21 12:12:30,575: INFO/ForkPoolWorker-16] Task a3d9cb5b-bb95-43fe-a459-18345a661f9f completed successfully
+[2026-01-21 12:12:30,575: INFO/ForkPoolWorker-16] Task app.tasks.process_video_task[a3d9cb5b-bb95-43fe-a459-18345a661f9f] succeeded in 233.10197684104787s: {'status': 'completed', 'video_id': '423effa9-3b33-4c2c-a078-055d91647252', 'video_url': 'https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/videos/a16949d4-661f-49f1-96c3-278e016d7035_qt_composed_423effa9-3b33-4c2c-a078-055d91647252.mp4', 'srt_url': 'https://pub-65fad94ee5424c55b0505378e2c1fbf1.r2.dev/srt/093cc807-264d-443a-8ddb-632c746263fe_65b9984b-7ec3-4e4a-8d28-805a70b8187f.srt', 'duration': 126, 'clips_used': ['pexels_33060982', 'pexels_4999931', 'pexels_32943917', 'pexels_13070236', 'pexels_9614022', 'pexels_18197589', 'pexels_10613908', 'pexels_10654609', 'pexels_33926133', 'pexels_1452688', 'pexels_5359969']}

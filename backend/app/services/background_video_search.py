@@ -462,23 +462,26 @@ Output only: ACCEPT or REJECT
 REJECT if ANY of the following is present:
 
 1. HUMAN FACES (HIGHEST PRIORITY - ALWAYS REJECT):
+
+   ⚠️ CRITICAL: ANY PERSON IN CENTER OF FRAME = AUTOMATIC REJECT
+   Even if religious figure (nun, priest, monk) = REJECT
+
    - ANY face looking at camera (front view, 3/4 view, side view)
-   - Eyes visible and looking towards viewer
+   - Eyes, nose, or mouth visible (even partially)
    - Face clearly identifiable (even without smile)
    - Person posing or sitting in center of frame
+   - Person kneeling/praying in center of frame
    - Close-up or medium shot showing face details
    - Studio portrait style (gray background, centered person)
    - Interview/vlog/presentation setup
+   - Religious figures: nun, priest, monk with ANY face visible
 
    EXCEPTION (ONLY these are acceptable):
    - Complete silhouette (black shadow only, no face details)
-   - Back of head only (facing away from camera)
+   - Back of head only (facing away from camera, no face visible)
    - Hooded figure with face COMPLETELY HIDDEN IN SHADOW (if ANY face part visible = REJECT)
-   - Extreme long shot where face is tiny dot (< 5% of frame)
-   - Blurred/out of focus face (intentional artistic blur)
-
-   ⚠️ IMPORTANT: Nun/veil/religious clothing does NOT exempt from face rule.
-   If you can see eyes, nose, or mouth under veil/habit → REJECT!
+   - Extreme long shot where person is tiny dot (< 2% of frame)
+   - Heavy intentional blur (no features recognizable)
 
 2. REVEALING/SUGGESTIVE CONTENT:
    - Low-cut tops, cleavage, revealing necklines
@@ -496,7 +499,20 @@ REJECT if ANY of the following is present:
 4. Vehicles:
    - Cars, motorcycles, driving scenes
 
-5. Other inappropriate:
+5. Animals (selective):
+   ⚠️ REJECT ONLY:
+   - Pet animals: dogs, cats (especially close-ups)
+   - Cute animal videos (YouTube pet style)
+   - Insects, reptiles, creepy creatures
+   - Animals in unnatural/entertainment settings
+
+   ✅ ACCEPT (Biblical/nature symbols):
+   - Sheep, lamb flock (in distance/background)
+   - Doves, eagles (birds in flight, distant)
+   - Fish (underwater, symbolic)
+   - Wildlife in natural habitat (wide shots)
+
+6. Other inappropriate:
    - Violence, weapons, blood
    - Alcohol, smoking, drugs
    - Nightclub, bar, party scenes
@@ -513,6 +529,7 @@ REJECT if ANY of the following is present:
 - Back view: person walking away, back of head visible only
 - Hooded figures: face completely hidden in shadow
 - Praying hands ONLY (no face visible at all)
+- Biblical animals: sheep flock in field, doves flying, eagles soaring (distant)
 </accept_examples>
 
 <reject_examples>
@@ -529,6 +546,9 @@ REJECT if ANY of the following is present:
 - Nun/priest with face visible under veil/habit ❌
 - Religious person praying with face visible ❌
 - Person in church with face looking at camera ❌
+- Pet dogs/cats (especially close-ups) ❌
+- Cute animal videos (YouTube style) ❌
+- Insects, reptiles, creepy creatures ❌
 </reject_examples>
 
 CRITICAL RULE: If you can see a person's face clearly (eyes, nose, mouth), ALWAYS REJECT.

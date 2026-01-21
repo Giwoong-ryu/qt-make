@@ -45,23 +45,26 @@ Output only: ACCEPT or REJECT
 REJECT if ANY of the following is present:
 
 1. HUMAN FACES (HIGHEST PRIORITY - ALWAYS REJECT):
+
+   ⚠️ CRITICAL: ANY PERSON IN CENTER OF FRAME = AUTOMATIC REJECT
+   Even if religious figure (nun, priest, monk) = REJECT
+
    - ANY face looking at camera (front view, 3/4 view, side view)
-   - Eyes visible and looking towards viewer
+   - Eyes, nose, or mouth visible (even partially)
    - Face clearly identifiable (even without smile)
    - Person posing or sitting in center of frame
+   - Person kneeling/praying in center of frame
    - Close-up or medium shot showing face details
    - Studio portrait style (gray background, centered person)
    - Interview/vlog/presentation setup
+   - Religious figures: nun, priest, monk with ANY face visible
 
    EXCEPTION (ONLY these are acceptable):
    - Complete silhouette (black shadow only, no face details)
-   - Back of head only (facing away from camera)
+   - Back of head only (facing away from camera, no face visible)
    - Hooded figure with face COMPLETELY HIDDEN IN SHADOW (if ANY face part visible = REJECT)
-   - Extreme long shot where face is tiny dot (< 5% of frame)
-   - Blurred/out of focus face (intentional artistic blur)
-
-   ⚠️ IMPORTANT: Nun/veil/religious clothing does NOT exempt from face rule.
-   If you can see eyes, nose, or mouth under veil/habit → REJECT!
+   - Extreme long shot where person is tiny dot (< 2% of frame)
+   - Heavy intentional blur (no features recognizable)
 
 2. Inappropriate content:
    - Violence, weapons, fighting
@@ -77,23 +80,61 @@ REJECT if ANY of the following is present:
    - Modern technology close-ups
 </reject_criteria>
 
-<accept_criteria>
-ACCEPT ONLY if ALL of the following are true:
+2. REVEALING/SUGGESTIVE CONTENT:
+   - Low-cut tops, cleavage, revealing necklines
+   - Tight/form-fitting clothing emphasizing body
+   - Swimwear, bikini, lingerie, underwear
+   - Bare shoulders, midriff, exposed skin
+   - Fashion model poses (hand on hip, looking over shoulder)
+   - Glamour/beauty shots, studio fashion photography
+   - Seductive or alluring expressions
+   - Entertainment industry footage (music videos, fashion shows)
 
-1. NO human face visible (as defined above)
-2. Content fits meditation/prayer theme:
-   - Nature: forests, mountains, oceans, skies
-   - Abstract: flowing water, clouds, light beams
-   - Spiritual symbols: candles, crosses (non-political)
-   - Peaceful scenes: empty churches, gardens, sunsets
-3. Calm colors: earth tones, pastels, soft lighting
-4. Slow motion or still shots
-</accept_criteria>
+3. Product/commercial content:
+   - Hand holding light bulb, unboxing, brand logos, advertisements
 
-<output_format>
-Output ONLY one word: ACCEPT or REJECT
-NO explanations, NO additional text.
-</output_format>"""
+4. Vehicles:
+   - Cars, motorcycles, driving scenes
+
+5. Other inappropriate:
+   - Violence, weapons, blood
+   - Alcohol, smoking, drugs
+   - Nightclub, bar, party scenes
+</reject_criteria>
+
+<accept_examples>
+- Nature ONLY: mountains, ocean, forest, sky, clouds, sunset, fog, rain, waterfalls
+- Architecture: church, cathedral, ancient buildings, throne rooms (no people)
+- Objects: coffee cup with sunset, candles, religious symbols, books
+- Text graphics: "Forgiveness", spiritual messages on nature background
+- Light effects: sun rays, golden hour, lens flare
+- Artistic blur, soft focus, black and white, dreamy atmosphere
+- Complete silhouettes: person as black shadow against bright background
+- Back view: person walking away, back of head visible only
+- Hooded figures: face completely hidden in shadow
+- Praying hands ONLY (no face visible at all)
+</accept_examples>
+
+<reject_examples>
+- Woman sitting facing camera (even with neutral expression) ❌
+- Man looking at camera from any angle ❌
+- Person in center of frame with face visible ❌
+- Studio portrait with gray background ❌
+- Close-up of person's face (even if serious) ❌
+- Person in tight clothing ❌
+- Fashion/modeling poses ❌
+- Hand holding product ❌
+- Car driving ❌
+- Beach scenes with swimwear ❌
+- Nun/priest with face visible under veil/habit ❌
+- Religious person praying with face visible ❌
+- Person in church with face looking at camera ❌
+</reject_examples>
+
+CRITICAL RULE: If you can see a person's face clearly (eyes, nose, mouth), ALWAYS REJECT.
+This is for meditation content - faces distract from contemplation.
+
+Output:"""
 
     # Gemini 2.5 Flash 모델 사용 (background_video_search.py와 동일)
     model = genai.GenerativeModel("gemini-2.5-flash")
