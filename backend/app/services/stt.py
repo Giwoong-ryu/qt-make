@@ -50,34 +50,25 @@ class WhisperService:
     # Netflix/Kss 기준: 확실한 종결어미만 포함
     # 주의: 1글자 종결어미(가, 와, 봐, 줘)는 조사와 혼동되므로 제외!
     KOREAN_SENTENCE_ENDINGS = (
-        # 격식체 종결어미 (가장 확실함)
-        '습니다', '입니다', '됩니다', '합니다', '갑니다', '옵니다',
-        '십시오', '십니다', '셨습니다', '었습니다', '았습니다',
-        '겠습니다', '이었습니다', '셨어요', '였습니다',
-        # 존댓말 종결어미
-        '세요', '시죠', '시네요', '으세요', '으시죠',
-        '으십시오', '하세요', '주세요', '보세요', '가세요', '오세요',
-        # 해요체 종결어미
-        '해요', '네요', '죠', '어요', '아요', '예요', '에요',
-        '겠죠', '잖아요', '거예요', '건가요', '나요', '을까요',
-        '했어요', '됐어요', '였어요', '이에요', '데요', '래요',
-        '볼게요', '할게요', '줄게요', '갈게요', '올게요',
-        '봐요', '해봐요', '가요', '와요', '줘요',
-        # 반말 종결어미 (2글자 이상만! 1글자는 조사와 혼동)
-        '했다', '됐다', '었다', '았다', '인다', '한다', '이다',
-        '간다', '온다', '본다', '던다', '준다', '쓴다',
-        '했어', '됐어', '었어', '았어', '거야', '이야',
-        '해봐', '가봐', '와봐',  # 2글자 이상 반말
-        '해줘', '가줘', '와줘',  # 2글자 이상 반말
-        # 의문형 종결어미
-        '습니까', '입니까', '는가', '은가', '냐', '나',
-        '을까', '할까', '볼까', '갈까',
-        '할래', '볼래', '갈래', '할까요', '볼까요',
-        # 청유형/명령형
-        '읍시다', '합시다', '하자', '해라', '가자', '보자',
-        '하세요', '가세요', '오세요', '보세요',
-        # 감탄형
-        '구나', '군요', '구만', '더라', '던데요',
+        # 격식체 (합니다체) - "니다", "시오" 패턴이면 대부분 종결
+        '니다', '십시오', '십니까',
+        # 해요체 - "요"로 끝나면 일단 의심하되, 연결어미와 구분 필요
+        '해요', '나요', '가요', '봐요', '줘요', '와요', '내요', '데요',
+        '예요', '에요', '거예요', '것인가요', '건가요',
+        '까요', '을까요', 'ㄹ까요', '신가요',
+        '게요', '을게요', 'ㄹ게요',
+        '죠', '시죠', '하죠', '되죠',
+        # 존댓말/청유/명령
+        '세요', '으세요', '시지요', '시지요',
+        '옵소서', '주소서',
+        # 반말 (해라체)
+        '한다', '인다', ' 된다', ' 쓴다', ' 본다', ' 온다', ' 간다',
+        '했다', '됐다', '었다', '았다', '였다',
+        '겠어', '했어', '됐어', '았어', '었어',
+        '거야', '이야', '잖아', '니', '냐', '는가', '은가', '던가',
+        '해라', '마라', '자', '보자',
+        # 감탄
+        '구나', '군요', '네', '더라',
     )
 
     # 한국어 조사 (절대 끊으면 안 되는 패턴!)
@@ -435,69 +426,76 @@ class WhisperService:
             if not word:
                 continue
 
-            # 접속부사 앞에서 끊기 체크 (Netflix 스타일)
-            # "앉으십니다 하지만" → "앉으십니다" / "하지만..."
+            # 1. 접속부사 앞에서 끊기 (Netflix 스타일)
+            # "앉으십니다 / 하지만" (접속부사가 새 자막의 시작이 되도록)
             if current_text and self._should_break_before_word(word):
-                # 현재 블록 저장 (접속부사 전까지)
-                if current_words:
-                    subtitles.append({
-                        'start': current_start,
-                        'end': current_words[-1].get('end', end),
-                        'text': current_text
-                    })
-                # 접속부사부터 새 블록 시작
-                current_words = [word_data]
-                current_text = word
-                current_start = start
-                continue
-
-            # 첫 단어
-            if current_start is None:
-                current_start = start
-
-            # 새 단어 추가 시 길이/시간 체크
-            new_text = (current_text + " " + word).strip() if current_text else word
-            duration = end - current_start
-
-            # 한국어 문장 종결 패턴 체크
-            is_sentence_end = self._is_korean_sentence_end(new_text)
-
-            # 조건: 글자수 초과 또는 시간 초과 또는 문장 끝
-            should_break = (
-                len(new_text) > self.MAX_CHARS_PER_SUBTITLE or
-                duration > self.MAX_DURATION or
-                is_sentence_end
-            )
-
-            if should_break and current_text:
-                # 문장 끝이면 현재 단어까지 포함해서 저장
-                if is_sentence_end and len(new_text) <= self.MAX_CHARS_PER_SUBTITLE:
-                    current_words.append(word_data)
-                    current_text = new_text
-
-                # 현재 블록 저장
                 subtitles.append({
                     'start': current_start,
                     'end': current_words[-1].get('end', end),
                     'text': current_text
                 })
+                current_words = [word_data]
+                current_text = word
+                current_start = start
+                continue
 
-                # 새 블록 시작
-                if is_sentence_end and len(new_text) <= self.MAX_CHARS_PER_SUBTITLE:
-                    # 문장 끝으로 끊었으면 새 블록은 빈 상태로
+            # 첫 단어 설정
+            if current_start is None:
+                current_start = start
+
+            # 2. 현재 단어가 문장 종결인지 확인 (단어 단위 체크!)
+            # "깨웁니다" 처럼 단어 자체가 종결이면 여기서 끊어야 함
+            # 기존에는 (기존텍스트 + 단어)를 검사해서, 뒤에 명사가 오면 안 끊기는 문제 있었음
+            is_word_end = self._is_korean_sentence_end(word)
+
+            # 텍스트 합치기
+            new_text = (current_text + " " + word).strip() if current_text else word
+            duration = end - current_start
+
+            # 끊기 조건 확인
+            should_break = (
+                len(new_text) > self.MAX_CHARS_PER_SUBTITLE or  # 글자수 초과
+                duration > self.MAX_DURATION or                 # 시간 초과
+                is_word_end                                     # ★ 단어가 종결어미면 즉시 끊기
+            )
+
+            if should_break:
+                # 문장 끝(종결어미)인 경우: 현재 단어까지 포함해서 저장 (문장 완성)
+                if is_word_end:
+                    current_words.append(word_data)
+                    subtitles.append({
+                        'start': current_start,
+                        'end': end,  # 현재 단어 끝나는 시간
+                        'text': new_text
+                    })
+                    # 초기화
                     current_words = []
                     current_text = ""
                     current_start = None
-                else:
-                    # 글자수/시간 초과로 끊었으면 현재 단어부터 새 블록
+
+                # 글자수/시간 초과지만 문장은 안 끝난 경우
+                elif current_text:
+                    # 현재 단어는 다음 블록으로 넘김 (단어 중간 절단 방지)
+                    subtitles.append({
+                        'start': current_start,
+                        'end': current_words[-1].get('end', end),
+                        'text': current_text
+                    })
                     current_words = [word_data]
                     current_text = word
                     current_start = start
+                
+                else:
+                    # (예외 케이스) 단어 하나가 너무 긴 경우 -> 그냥 넣음
+                    current_words.append(word_data)
+                    current_text = new_text
+
             else:
+                # 안 끊고 계속 이어감
                 current_words.append(word_data)
                 current_text = new_text
 
-        # 마지막 블록
+        # 마지막 남은 블록 처리
         if current_text:
             subtitles.append({
                 'start': current_start,

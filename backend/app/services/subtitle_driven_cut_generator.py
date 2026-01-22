@@ -17,29 +17,18 @@ Usage:
 import logging
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
+from app.services.stt import WhisperService
 
 logger = logging.getLogger(__name__)
 
 
 # 한국어 문장 종결어미 패턴 (우선순위 순)
-SENTENCE_ENDINGS = [
-    '니다.',  # 합니다, 입니다
-    '세요.',  # 하세요
-    '어요.', '아요.',  # 해요체
-    '습니다.',  # 높임
-    '까요?', '나요?',  # 의문
-    '네요.',  # 감탄
-    '죠.',  # 축약
-    '요.',  # 일반 존칭
-    '다.', '까.', '네.', '어.',  # 짧은 종결
-]
+# stt.py와 기준 통일: 강력해진 패턴 사용
+SENTENCE_ENDINGS = WhisperService.KOREAN_SENTENCE_ENDINGS
 
 # 문장 중간에 오는 연결어미 (컷 분리 회피)
-CONNECTING_ENDINGS = [
-    '하며', '하고', '으며', '면서', '지만', '는데',
-    '니까', '므로', '라서', '해서', '고서', '려고',
-    '듯이', '처럼', '만큼',
-]
+# stt.py와 기준 통일
+CONNECTING_ENDINGS = WhisperService.KOREAN_CONNECTING_ENDINGS
 
 
 @dataclass
@@ -262,17 +251,30 @@ class SubtitleDrivenCutGenerator:
 
     def _is_sentence_end(self, text: str) -> bool:
         """문장 종결어미로 끝나는지 확인"""
-        text_stripped = text.strip()
+        text = text.strip()
+        if not text:
+            return False
+
+        # 1. 문장부호 자체가 강력한 종결 신호
+        if text.endswith(('.', '!', '?', '。')):
+            return True
+
+        # 2. 문장부호 제거 후 어미 매칭 (예: "합니다," -> "합니다")
+        text_clean = text.rstrip('.!?。,"\'')
+        
         for ending in SENTENCE_ENDINGS:
-            if text_stripped.endswith(ending):
+            if text_clean.endswith(ending):
                 return True
         return False
 
     def _ends_with_connecting_word(self, text: str) -> bool:
         """연결어미로 끝나는지 확인 (문장 중간)"""
-        text_stripped = text.strip()
+        text = text.strip()
+        # 쉼표 등 제거
+        text_clean = text.rstrip(',"\'')
+        
         for ending in CONNECTING_ENDINGS:
-            if text_stripped.endswith(ending):
+            if text_clean.endswith(ending):
                 return True
         return False
 

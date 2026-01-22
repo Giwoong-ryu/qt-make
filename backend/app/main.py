@@ -207,47 +207,47 @@ async def test_upload(
 @app.post("/api/videos/upload")
 async def upload_videos(
     request: Request,
-    files: list[UploadFile] = File(...),
-    church_id: str = Form(...),
+    # 2026-01-23 개선: 기본값 부여하여 FastAPI 기본 422 에러 대신 명확한 커스텀 400 에러 반환
+    files: list[UploadFile] = File(default=[]),
+    church_id: str = Form(default=""),
     pack_id: str = Form(default="pack-free"),
-    # 프론트엔드 호환용 (현재 미사용, 추후 확장)
+    # 프론트엔드 호환용
     title: str | None = Form(default=None),
     clip_ids: str | None = Form(default=None),
     bgm_id: str | None = Form(default=None),
-    bgm_volume: str | None = Form(default=None),  # 문자열로 받음
-    generate_thumbnail: str | None = Form(default=None),  # 문자열로 받음
-    generation_mode: str | None = Form(default="natural"),  # 생성 방식: "default" or "natural"
-    subtitle_length: str | None = Form(default="short"),  # 자막 길이: "short"(8자) or "long"(16자/Netflix)
-    authorization: str | None = Header(default=None)  # 인증 토큰
+    bgm_volume: str | None = Form(default=None),
+    generate_thumbnail: str | None = Form(default=None),  # 사용자가 요청한 썸네일 생성 옵션
+    generation_mode: str | None = Form(default="natural"),
+    subtitle_length: str | None = Form(default="short"),
+    generate_edit_pack: str | None = Form(default=None),
+    authorization: str | None = Header(default=None)
 ):
     """
     MP3 파일 업로드 및 영상 생성 작업 큐 추가
-
-    Args:
-        files: MP3 파일 리스트 (최대 7개)
-        church_id: 교회 UUID
-        pack_id: 배경팩 ID
-        authorization: Bearer 토큰 (무료 플랜 크레딧 체크)
-
-    Returns:
-        task_id: Celery 배치 작업 ID
-        video_ids: 생성된 video 레코드 ID 리스트
     """
     # 디버그 로깅
     logger.info(f"Content-Type: {request.headers.get('content-type')}")
-    logger.info(f"Upload request received: files={len(files)}, church_id={church_id}, title={title}")
+    logger.info(f"Upload request: files={len(files)}, church_id={church_id}")
+
+    # 1. 파일 누락 체크 (친절한 에러 메시지)
+    if not files:
+        raise HTTPException(
+            status_code=400,
+            detail="업로드할 파일을 선택해주세요. (MP3, M4A, WAV 지원)"
+        )
+
+    # 2. 교회 ID 누락 체크
+    if not church_id:
+        raise HTTPException(
+            status_code=400,
+            detail="교회 ID가 누락되었습니다. 다시 로그인해주세요."
+        )
 
     # 파일 수 검증
     if len(files) > 7:
         raise HTTPException(
             status_code=400,
             detail="최대 7개 파일까지 업로드 가능합니다."
-        )
-
-    if len(files) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="최소 1개 파일을 업로드해야 합니다."
         )
 
     # ===== 크레딧 체크 (무료 플랜) =====
@@ -372,6 +372,9 @@ async def upload_videos(
     # subtitle_length 검증 (short 또는 long만 허용)
     valid_subtitle_length = subtitle_length if subtitle_length in ("short", "long") else "short"
 
+    # generate_edit_pack 파싱 (문자열 → bool)
+    should_generate_edit_pack = generate_edit_pack and generate_edit_pack.lower() == "true"
+
     # 배치 처리 또는 단일 처리
     if len(files) == 1:
         # 단일 파일: 직접 처리
@@ -384,7 +387,8 @@ async def upload_videos(
             bgm_id,           # BGM ID
             parsed_bgm_volume, # BGM 볼륨
             generation_mode,  # 생성 방식
-            valid_subtitle_length  # 자막 길이
+            valid_subtitle_length,  # 자막 길이
+            should_generate_edit_pack  # Edit Pack 생성 여부
         )
     else:
         # 다중 파일: 배치 처리
@@ -396,7 +400,8 @@ async def upload_videos(
             bgm_id,           # BGM ID
             parsed_bgm_volume, # BGM 볼륨
             generation_mode,  # 생성 방식
-            valid_subtitle_length  # 자막 길이
+            valid_subtitle_length,  # 자막 길이
+            should_generate_edit_pack  # Edit Pack 생성 여부
         )
 
     return {
