@@ -18,13 +18,15 @@ class WhisperService:
     # 자막 길이 설정 프리셋
     # 2026-01-23 개선: short 모드 값 상향 - 너무 짧게 끊겨서 연결어미/조사에서 분리되는 문제 해결
     SUBTITLE_PRESETS = {
-        "short": {  # QT 영상 최적화 (기본값) - 가독성과 문맥 유지 균형
-            "max_chars_per_line": 14,      # 8→14: 한 줄에 더 많은 글자 허용
-            "max_chars_per_subtitle": 28,  # 16→28: 자막당 글자수 여유 확보
+        "short": {  # QT 영상 최적화 (기본값) - 맥락 유지 위해 길이 대폭 상향
+            "max_chars_per_line": 20,      # 14→20: 한 줄에 넉넉하게
+            "max_chars_per_subtitle": 40,  # 28→40: 전체 문맥 담기 충분하게
+            "max_duration": 4.0,           # 시간 제한 추가
         },
-        "long": {  # Netflix 한국어 기준 (최대치)
-            "max_chars_per_line": 16,
-            "max_chars_per_subtitle": 32,
+        "long": {  # 긴 호흡
+            "max_chars_per_line": 25,      # 16→25
+            "max_chars_per_subtitle": 50,  # 32→50
+            "max_duration": 6.0,
         }
     }
 
@@ -36,11 +38,13 @@ class WhisperService:
         preset = self.SUBTITLE_PRESETS.get(subtitle_length, self.SUBTITLE_PRESETS["short"])
         self.MAX_CHARS_PER_LINE = preset["max_chars_per_line"]
         self.MAX_CHARS_PER_SUBTITLE = preset["max_chars_per_subtitle"]
+        self.MAX_DURATION = preset.get("max_duration", 5.0)  # max_duration 설정 적용
         self.subtitle_length = subtitle_length
 
         logger.info(f"WhisperService initialized with subtitle_length={subtitle_length} "
                     f"(MAX_CHARS_PER_LINE={self.MAX_CHARS_PER_LINE}, "
-                    f"MAX_CHARS_PER_SUBTITLE={self.MAX_CHARS_PER_SUBTITLE})")
+                    f"MAX_CHARS_PER_SUBTITLE={self.MAX_CHARS_PER_SUBTITLE}, "
+                    f"MAX_DURATION={self.MAX_DURATION})")
     MIN_DURATION = 0.83  # 자막 최소 표시 시간 (초) - Netflix 기준 5/6초
     MAX_DURATION = 5.0  # 자막 최대 표시 시간 (초) - 더 짧게 (7초→5초)
     MIN_GAP_FRAMES = 2  # 자막 간 최소 간격 (프레임) @ 30fps = 약 67ms
@@ -475,8 +479,8 @@ class WhisperService:
             )
             
             if should_break:
-                # 문장 끝(종결어미)인 경우 OR Soft Break인 경우: 현재 단어 포함해서 저장
-                if is_word_end or is_soft_break:
+                # 문장 끝(종결어미)인 경우: 현재 단어까지 포함해서 저장 (문장 완성)
+                if is_word_end:
                     current_words.append(word_data)
                     subtitles.append({
                         'start': current_start,
@@ -486,6 +490,20 @@ class WhisperService:
                     current_words = []
                     current_text = ""
                     current_start = None
+
+                # Soft Break인 경우: 현재 단어는 다음 줄로 보냄 (애매하면 짧게 끊어서 아래로 내림)
+                elif is_soft_break:
+                    # 현재까지 쌓인 것만 저장
+                    if current_text:
+                        subtitles.append({
+                            'start': current_start,
+                            'end': current_words[-1].get('end', end),
+                            'text': current_text
+                        })
+                    # 현재 단어로 새 블록 시작
+                    current_words = [word_data]
+                    current_text = word
+                    current_start = start
 
                 # 글자수/시간 초과지만 문장은 안 끝난 경우 (Hard Limit)
                 elif current_text:
