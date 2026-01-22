@@ -288,27 +288,31 @@ def process_video_task(
             # ============ 새로운 방식: Subtitle-Based Clips ============
             logger.info("[Step 2.2] 🎬 3-Stage Pipeline: Subtitle-Based Clip Matching")
 
-            # Stage 1: LLM 기획자 - 컷 리스트 생성 (의미 단위로 자막 그룹핑)
+            # Stage 1: 컷 리스트 생성 (자막 시작 = 클립 시작 동기화)
             self.update_state(
                 state="PROCESSING",
-                meta={"progress": 28, "step": "📖 말씀의 흐름을 파악하고 있습니다..."}
+                meta={"progress": 28, "step": "Analyzing the flow of the message..."}
             )
 
-            from app.services.cut_list_generator import CutListGenerator
-            cut_generator = CutListGenerator()
+            # 새로운 SubtitleDrivenCutGenerator 사용 (자막 start_time = 컷 start_time)
+            from app.services.subtitle_driven_cut_generator import SubtitleDrivenCutGenerator
+            cut_generator = SubtitleDrivenCutGenerator(
+                min_cut_duration=4.0,
+                max_cut_duration=12.0,
+                prefer_sentence_end=True,
+                target_cut_duration=8.0
+            )
             cuts = cut_generator.generate_cuts(
                 subtitles=subtitles,
                 subtitle_timings=subtitle_timings,
-                min_duration=8.0,
-                max_duration=15.0,
-                target_cuts=11
+                audio_duration=audio_duration
             )
 
-            logger.info(f"[Stage 1/3] 컷 생성 완료: {len(cuts)}개")
+            logger.info(f"[Stage 1/3] Cut generation complete: {len(cuts)} cuts")
             for cut in cuts:
                 logger.info(
-                    f"  Cut {cut.index+1}: {cut.start_time:.1f}s-{cut.end_time:.1f}s "
-                    f"({cut.duration:.1f}s) - {len(cut.subtitle_texts)} subtitles"
+                    f"  Cut {cut.index+1}: {cut.start_time:.2f}s-{cut.end_time:.2f}s "
+                    f"({cut.duration:.2f}s) - subtitles {cut.subtitle_indices[0]}-{cut.subtitle_indices[-1]}"
                 )
 
             # Stage 2: LLM 감독 - Visual Description 생성
