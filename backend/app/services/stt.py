@@ -16,12 +16,13 @@ class WhisperService:
     """Groq Whisper Large v3 Turbo STT 서비스"""
 
     # 자막 길이 설정 프리셋
+    # 2026-01-23 개선: short 모드 값 상향 - 너무 짧게 끊겨서 연결어미/조사에서 분리되는 문제 해결
     SUBTITLE_PRESETS = {
-        "short": {  # QT 영상 최적화 (기본값)
-            "max_chars_per_line": 8,
-            "max_chars_per_subtitle": 16,
+        "short": {  # QT 영상 최적화 (기본값) - 가독성과 문맥 유지 균형
+            "max_chars_per_line": 14,      # 8→14: 한 줄에 더 많은 글자 허용
+            "max_chars_per_subtitle": 28,  # 16→28: 자막당 글자수 여유 확보
         },
-        "long": {  # Netflix 한국어 기준
+        "long": {  # Netflix 한국어 기준 (최대치)
             "max_chars_per_line": 16,
             "max_chars_per_subtitle": 32,
         }
@@ -309,6 +310,7 @@ class WhisperService:
 
                 # 병합 필요 여부 판단
                 should_merge = False
+                force_merge = False  # 강제 병합 (길이 제한 완화)
 
                 # 조건 1: 조사로 끝나면 불완전
                 for particle in self.KOREAN_PARTICLES:
@@ -325,27 +327,33 @@ class WhisperService:
                     if current_text.endswith(connecting):
                         should_merge = True
                         break
-                
-                # 조건 4: 다음 자막이 동사 어미로 시작
-                if not should_merge and next_first_word:
-                    # 동사 어미 확인
-                    for ending in self.KOREAN_SENTENCE_ENDINGS:
-                        if next_first_word.endswith(ending) and len(next_first_word) <= len(ending) + 2:
-                            should_merge = True
-                            break
-                    
-                    # 동사 시작 패턴 확인
-                    verb_starters = ("있", "없", "됐", "했", "갔", "왔", "봤", "계셨", "하셨", "주셨")
-                    if next_first_word.startswith(verb_starters):
+
+                # 조건 4: 다음 자막이 동사/종결어미로 시작 (항상 체크!)
+                # "두지 않으십니다", "이렇게 말씀하십니다" 등의 패턴 처리
+                if next_first_word:
+                    # 4-1: 부정/보조 동사로 시작 (강제 병합!)
+                    negative_verbs = ("않", "못", "안", "있", "없", "됐", "했", "갔", "왔", "봤",
+                                      "계셨", "하셨", "주셨", "되셨", "오셨", "가셨")
+                    if next_first_word.startswith(negative_verbs):
                         should_merge = True
+                        force_merge = True  # 길이 제한 완화
+
+                    # 4-2: 종결어미로 끝나는 짧은 단어 (강제 병합!)
+                    for ending in self.KOREAN_SENTENCE_ENDINGS:
+                        if next_first_word.endswith(ending) and len(next_first_word) <= len(ending) + 3:
+                            should_merge = True
+                            force_merge = True
+                            break
 
                 if should_merge:
                     merged_text = current_text + " " + next_text
                     merged_duration = next_sub['end'] - current['start']
 
-                    # 병합 가능 조건: 길이/시간 초과 안 함
-                    if (len(merged_text) <= self.MAX_CHARS_PER_SUBTITLE * 1.5 and
-                        merged_duration <= self.MAX_DURATION * 1.2):
+                    # 병합 가능 조건: 강제 병합이면 제한 완화
+                    max_chars = self.MAX_CHARS_PER_SUBTITLE * (2.5 if force_merge else 1.5)
+                    max_duration = self.MAX_DURATION * (1.5 if force_merge else 1.2)
+
+                    if len(merged_text) <= max_chars and merged_duration <= max_duration:
                         # 병합 실행
                         current['text'] = merged_text
                         current['end'] = next_sub['end']
@@ -524,9 +532,16 @@ class WhisperService:
         # 보조적 연결어미 (2글자 이상)
         '아서', '어서', '여서', '아도', '어도', '여도',
         '하게', '하지',  # "~하게 되다", "~하지 않다"
-        # 존경 연결어미 (NEW) - "주무시고", "하셨는데" 등
+        # 존경 연결어미 - "주무시고", "하셨는데" 등
         '시고', '셨고', '셨는데', '시며', '시면서', '셨으니까',
         '시니까', '시려고', '시면', '셨으면', '시는데',
+        # 관형형 어미 (2026-01-23 추가) - "복된 하루", "좋은 아침" 등 관형어+명사 분리 방지
+        # 이 패턴으로 끝나면 뒤에 명사가 반드시 와야 함
+        '하는', '되는', '있는', '없는', '같은',  # 현재 관형형
+        '했던', '됐던', '있던', '없던', '같던',  # 과거 회상 관형형  
+        '할', '될', '있을', '없을', '같을',      # 미래/추측 관형형
+        '된', '한', '인',                        # 완료 관형형 (복된, 좋은→좋은은 없지만 한/된/인은 있음)
+        '커다란', '작다란', '조그만', '새로운', '오래된',  # 복합 관형사
     )
 
     def _is_korean_sentence_end(self, text: str) -> bool:
