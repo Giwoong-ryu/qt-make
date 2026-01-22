@@ -263,12 +263,49 @@ def main():
     logger.info(f"  Output: {output_dir}")
     logger.info("=" * 50)
 
-    # 정규화된 파일 목록 저장 (런타임 참조용)
-    manifest_path = output_dir / "manifest.txt"
+    # 정규화된 파일 목록 + duration 메타데이터 저장 (런타임 참조용)
+    import json
+    manifest_data = {}
+
+    for output_path in output_dir.glob("norm_*.mp4"):
+        # 각 클립의 duration 조회
+        info = get_video_info(output_path)
+        duration = 0.0
+        if info:
+            # FFprobe로 정확한 duration 조회
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(output_path)
+            ]
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    duration = float(result.stdout.strip())
+            except Exception:
+                pass
+
+        manifest_data[output_path.name] = {
+            "duration": duration,
+            "width": info.get("width", TARGET_WIDTH),
+            "height": info.get("height", TARGET_HEIGHT),
+            "fps": info.get("fps", TARGET_FPS)
+        }
+        logger.info(f"  {output_path.name}: {duration:.1f}s")
+
+    # JSON 메타데이터 저장
+    manifest_path = output_dir / "manifest.json"
     with open(manifest_path, "w") as f:
-        for output_path in output_dir.glob("norm_*.mp4"):
-            f.write(f"{output_path.name}\n")
+        json.dump(manifest_data, f, indent=2)
     logger.info(f"Manifest saved: {manifest_path}")
+
+    # 기존 txt 형식도 유지 (호환성)
+    manifest_txt_path = output_dir / "manifest.txt"
+    with open(manifest_txt_path, "w") as f:
+        for name in manifest_data.keys():
+            f.write(f"{name}\n")
+    logger.info(f"Manifest (txt) saved: {manifest_txt_path}")
 
     if fail_count > 0:
         sys.exit(1)

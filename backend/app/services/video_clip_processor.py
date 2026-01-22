@@ -244,7 +244,92 @@ class VideoClipProcessor:
 
         raise ValueError(f"Unknown clip processing case: {clip}")
 
-    def _download_video(self, url: str, output_path: Path, video_id: Optional[int] = None) -> Path:
+    def _load_clip_manifest(self) -> dict:
+        """정규화된 클립 메타데이터 로드 (캐싱)"""
+        if not hasattr(self, '_clip_manifest'):
+            self._clip_manifest = {}
+            manifest_path = Path("/app/background_clips/normalized/manifest.json")
+            if manifest_path.exists():
+                import json
+                try:
+                    with open(manifest_path) as f:
+                        self._clip_manifest = json.load(f)
+                    logger.info(f"Loaded clip manifest: {len(self._clip_manifest)} clips")
+                except Exception as e:
+                    logger.warning(f"Failed to load manifest: {e}")
+        return self._clip_manifest
+
+    def _select_clip_by_duration(self, min_duration: float, clips_dir: Path, prefix: str = "norm_") -> Optional[Path]:
+        """
+        duration 기준으로 적합한 클립 선택
+
+        전략:
+        1. min_duration 이상인 클립들 중에서 선택 (반복 방지)
+        2. 적합한 클립이 없으면 가장 긴 클립 선택 (반복 최소화)
+        3. 랜덤 선택으로 다양성 유지
+
+        Args:
+            min_duration: 최소 필요 duration (초)
+            clips_dir: 클립 디렉토리
+            prefix: 파일명 접두사
+
+        Returns:
+            선택된 클립 경로 (없으면 None)
+        """
+        import random
+
+        manifest = self._load_clip_manifest()
+
+        # 정규화된 클립 목록
+        clips = list(clips_dir.glob(f"{prefix}*.mp4"))
+        if not clips:
+            return None
+
+        # duration 정보로 필터링
+        suitable_clips = []
+        all_clips_with_duration = []
+
+        for clip in clips:
+            clip_info = manifest.get(clip.name, {})
+            duration = clip_info.get("duration", 0)
+
+            # duration 정보가 없으면 FFprobe로 조회 (폴백)
+            if duration == 0:
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", str(clip)],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    duration = float(result.stdout.strip()) if result.returncode == 0 else 0
+                except Exception:
+                    duration = 0
+
+            all_clips_with_duration.append((clip, duration))
+
+            # min_duration 이상인 클립만 선택
+            if duration >= min_duration:
+                suitable_clips.append((clip, duration))
+
+        # 적합한 클립이 있으면 랜덤 선택
+        if suitable_clips:
+            selected, dur = random.choice(suitable_clips)
+            logger.info(f"[CLIP SELECT] Found suitable clip: {selected.name} ({dur:.1f}s >= {min_duration:.1f}s needed)")
+            return selected
+
+        # 적합한 클립이 없으면 가장 긴 클립 선택 (반복 횟수 최소화)
+        if all_clips_with_duration:
+            # duration 기준 내림차순 정렬 후 상위 3개 중 랜덤 선택 (다양성)
+            sorted_clips = sorted(all_clips_with_duration, key=lambda x: x[1], reverse=True)
+            top_clips = sorted_clips[:min(3, len(sorted_clips))]
+            selected, dur = random.choice(top_clips)
+            logger.info(f"[CLIP SELECT] No suitable clip, using longest: {selected.name} ({dur:.1f}s < {min_duration:.1f}s needed, will loop)")
+            return selected
+
+        return None
+
+    def _download_video(self, url: str, output_path: Path, video_id: Optional[int] = None, min_duration: float = 0) -> Path:
         """
         Pexels 영상 다운로드 (로컬 캐시 우선 사용)
 
@@ -252,24 +337,22 @@ class VideoClipProcessor:
             url: 영상 URL
             output_path: 저장 경로
             video_id: Pexels Video ID (캐시 확인용)
+            min_duration: 최소 필요 duration (초) - 클립 선택 시 참조
 
         Returns:
             다운로드된 파일 경로
         """
         import shutil
-        import random
 
         cache_dir = Path("/app/background_clips")
         normalized_dir = cache_dir / "normalized"
 
-        # Step 0: [최적화] 정규화된 클립 우선 사용 (concat demuxer 가능)
-        # 정규화된 클립은 동일 코덱/해상도/FPS → 무손실 연결 가능
+        # Step 0: [최적화] 정규화된 클립 우선 사용 (duration 기준 선택)
         if normalized_dir.exists():
-            normalized_clips = list(normalized_dir.glob("norm_*.mp4"))
-            if normalized_clips:
-                selected_norm = random.choice(normalized_clips)
-                logger.info(f"[NORMALIZED] Using pre-encoded clip: {selected_norm.name} (fast concat enabled)")
-                shutil.copy(selected_norm, output_path)
+            selected_clip = self._select_clip_by_duration(min_duration, normalized_dir, "norm_")
+            if selected_clip:
+                logger.info(f"[NORMALIZED] Using pre-encoded clip: {selected_clip.name} (fast concat enabled)")
+                shutil.copy(selected_clip, output_path)
                 return output_path
 
         # Step 1: Pexels 캐시 확인 (Docker 빌드 시 사전 다운로드된 클립)
@@ -281,11 +364,20 @@ class VideoClipProcessor:
                 return output_path
 
         # Step 2: 로컬 클립 폴백 (bible_video_samples - 56개 자연 영상)
+        # 여기도 duration 기준 선택 적용
         local_clips_dir = cache_dir / "local"
         if local_clips_dir.exists():
+            # 로컬 클립도 duration 기준으로 선택 시도
+            import random
             local_clips = list(local_clips_dir.glob("*.mp4"))
             if local_clips:
-                selected_clip = random.choice(local_clips)
+                # min_duration이 설정되어 있으면 긴 클립 우선
+                if min_duration > 0:
+                    # 파일 크기 기준 정렬 (대략적으로 길이와 비례)
+                    sorted_clips = sorted(local_clips, key=lambda x: x.stat().st_size, reverse=True)
+                    selected_clip = random.choice(sorted_clips[:min(5, len(sorted_clips))])
+                else:
+                    selected_clip = random.choice(local_clips)
                 logger.info(f"[LOCAL CLIP] Using local clip: {selected_clip.name}")
                 shutil.copy(selected_clip, output_path)
                 return output_path
@@ -319,11 +411,11 @@ class VideoClipProcessor:
         """
         logger.info(f"Processing single video with trim: {clip.trim_duration:.1f}s")
 
-        # Step 1: 영상 다운로드
+        # Step 1: 영상 다운로드 (segment_duration 기준 클립 선택)
         video_url = clip.video.file_path
         downloaded = self.temp_dir / f"seg{segment_idx}_src.mp4"
         video_id = clip.video.id if hasattr(clip.video, 'id') else None
-        self._download_video(video_url, downloaded, video_id)
+        self._download_video(video_url, downloaded, video_id, min_duration=segment_duration)
         temp_files.append(downloaded)
 
         # Step 2: Trim
@@ -367,11 +459,11 @@ class VideoClipProcessor:
             f"{video_duration:.1f}s × {repeat_times} times"
         )
 
-        # Step 1: 영상 다운로드
+        # Step 1: 영상 다운로드 (segment_duration 기준 클립 선택)
         video_url = clip.video.file_path
         downloaded = self.temp_dir / f"seg{segment_idx}_src.mp4"
         video_id = clip.video.id if hasattr(clip.video, 'id') else None
-        self._download_video(video_url, downloaded, video_id)
+        self._download_video(video_url, downloaded, video_id, min_duration=segment_duration)
         temp_files.append(downloaded)
 
         # Step 2: 반복 (stream_loop)
@@ -412,13 +504,14 @@ class VideoClipProcessor:
             f"{len(clip.all_videos)} videos"
         )
 
-        # Step 1: 모든 영상 다운로드
+        # Step 1: 모든 영상 다운로드 (각 비디오 duration 기준 클립 선택)
         downloaded_videos = []
         for vid_idx, video in enumerate(clip.all_videos):
             video_url = video.file_path
             downloaded = self.temp_dir / f"seg{segment_idx}_vid{vid_idx}.mp4"
             video_id = video.id if hasattr(video, 'id') else None
-            self._download_video(video_url, downloaded, video_id)
+            video_duration = video.duration if hasattr(video, 'duration') else 0
+            self._download_video(video_url, downloaded, video_id, min_duration=video_duration)
             temp_files.append(downloaded)
             downloaded_videos.append(downloaded)
 
