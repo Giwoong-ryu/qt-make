@@ -22,10 +22,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 애플리케이션 복사
 COPY . .
 
-# 프로젝트 폰트를 시스템 폰트 디렉토리로 복사 및 캐시 업데이트
+# 프로젝트 폰트를 시스템 폰트 디렉토리로 복사 및 캐시 업데이트 (타임아웃 방지)
 RUN mkdir -p /usr/share/fonts/truetype/custom && \
-    cp /app/app/fonts/*.ttf /usr/share/fonts/truetype/custom/ && \
-    fc-cache -fv
+    find /app/app/fonts -name "*.ttf" -exec cp {} /usr/share/fonts/truetype/custom/ \; || true && \
+    fc-cache -f || true
 
 # 포트 노출
 EXPOSE 8000
