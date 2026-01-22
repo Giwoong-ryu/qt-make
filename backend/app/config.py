@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # CORS (프로덕션용)
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"  # 쉼표로 구분
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,https://www.qt-make.com,https://qt-make.com"  # 쉼표로 구분
     ALLOWED_HOSTS: str = "*"  # 프로덕션에서는 실제 도메인으로 제한
     
     # PortOne (Payment)
