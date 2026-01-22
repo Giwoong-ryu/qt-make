@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 로그인
   const login = useCallback(async (email: string, password: string) => {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const response = await fetch(`${getApiUrl()}/api/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 회원가입
   const signup = useCallback(async (email: string, password: string, name?: string) => {
-    const response = await fetch(`${API_URL}/api/auth/signup`, {
+    const response = await fetch(`${getApiUrl()}/api/auth/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
