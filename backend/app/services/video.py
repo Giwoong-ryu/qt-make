@@ -38,6 +38,7 @@ class VideoComposer:
     OUTPUT_WIDTH = 1920
     OUTPUT_HEIGHT = 1080
     OUTPUT_CRF = 23  # 압축 레벨 (18=고품질, 23=표준, 28=저품질)
+    FFMPEG_PRESET = "faster"  # 인코딩 속도 (ultrafast/superfast/veryfast/faster/fast/medium/slow/slower/veryslow)
 
     # BGM 설정
     BGM_VOLUME = 0.12  # BGM 볼륨 (12% - 말씀이 잘 들리도록)
@@ -228,7 +229,7 @@ class VideoComposer:
             "-map", "[v]",
             "-map", "[a]",
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", self.FFMPEG_PRESET,
             "-crf", "23",
             "-c:a", "aac",
             "-b:a", "192k",
@@ -299,7 +300,7 @@ class VideoComposer:
             "-map", "[v]",
             "-map", "[a]",
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", self.FFMPEG_PRESET,
             "-crf", "23",
             "-c:a", "aac",
             "-b:a", "192k",
@@ -362,7 +363,7 @@ class VideoComposer:
                 "-t", str(target_duration),
                 "-vf", f"fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,{color_filter},format=yuv420p",
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 "-an",
                 output_path
@@ -380,7 +381,7 @@ class VideoComposer:
                 "-t", str(clip_dur),  # 실제 duration 사용
                 "-vf", f"fps=30,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,{color_filter},format=yuv420p",
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 "-an",
                 norm_path
@@ -403,7 +404,7 @@ class VideoComposer:
                 f"[0:v][1:v]xfade=transition=fade:duration={self.CROSSFADE_DURATION}:offset={fade_offset},format=yuv420p[v]",
                 "-map", "[v]",
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 xfade_path
             ]
@@ -446,7 +447,7 @@ class VideoComposer:
             "-safe", "0",
             "-i", concat_list_path,
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", self.FFMPEG_PRESET,
             "-crf", "23",
             concat_raw_path
         ]
@@ -482,7 +483,7 @@ class VideoComposer:
             "-i", video_path,
             "-t", str(target_duration),
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", self.FFMPEG_PRESET,
             "-crf", "23",
             output_path
         ]
@@ -660,7 +661,7 @@ class VideoComposer:
                 "-map", overlay_chain,
                 "-map", "0:a",
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 "-c:a", "copy",
                 "-movflags", "+faststart",
@@ -734,7 +735,7 @@ class VideoComposer:
                 "-i", video_path,
                 "-t", str(chunk_end - chunk_start),
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 "-c:a", "aac",
                 "-b:a", "192k",
@@ -785,7 +786,7 @@ class VideoComposer:
                     "-map", overlay_chain,
                     "-map", "0:a",
                     "-c:v", "libx264",
-                    "-preset", "fast",
+                    "-preset", self.FFMPEG_PRESET,
                     "-crf", "23",
                     "-c:a", "copy",
                     chunk_with_sub
@@ -822,7 +823,7 @@ class VideoComposer:
                 "-safe", "0",
                 "-i", concat_list,
                 "-c:v", "libx264",
-                "-preset", "fast",
+                "-preset", self.FFMPEG_PRESET,
                 "-crf", "23",
                 "-c:a", "aac",
                 "-b:a", "192k",
@@ -881,7 +882,7 @@ class VideoComposer:
             "-i", video_path,
             "-vf", subtitle_filter,
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", self.FFMPEG_PRESET,
             "-crf", "23",
             "-c:a", "copy",
             "-movflags", "+faststart",

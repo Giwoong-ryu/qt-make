@@ -244,18 +244,32 @@ class VideoClipProcessor:
 
         raise ValueError(f"Unknown clip processing case: {clip}")
 
-    def _download_video(self, url: str, output_path: Path) -> Path:
+    def _download_video(self, url: str, output_path: Path, video_id: Optional[int] = None) -> Path:
         """
-        Pexels 영상 다운로드
+        Pexels 영상 다운로드 (로컬 캐시 우선 사용)
 
         Args:
             url: 영상 URL
             output_path: 저장 경로
+            video_id: Pexels Video ID (캐시 확인용)
 
         Returns:
             다운로드된 파일 경로
         """
-        logger.info(f"Downloading video from {url[:50]}...")
+        # Step 1: 로컬 캐시 확인 (Docker 빌드 시 사전 다운로드된 클립)
+        if video_id:
+            cache_dir = Path("/app/background_clips")
+            cached_file = cache_dir / f"pexels_{video_id}.mp4"
+
+            if cached_file.exists():
+                logger.info(f"[CACHE HIT] Using cached clip: pexels_{video_id}.mp4")
+                # 캐시 파일을 output_path로 복사
+                import shutil
+                shutil.copy(cached_file, output_path)
+                return output_path
+
+        # Step 2: 캐시 없으면 Pexels에서 다운로드
+        logger.info(f"[DOWNLOAD] Downloading from Pexels: {url[:50]}...")
 
         response = requests.get(url, stream=True, timeout=30)
         response.raise_for_status()
@@ -286,7 +300,8 @@ class VideoClipProcessor:
         # Step 1: 영상 다운로드
         video_url = clip.video.file_path
         downloaded = self.temp_dir / f"seg{segment_idx}_src.mp4"
-        self._download_video(video_url, downloaded)
+        video_id = clip.video.id if hasattr(clip.video, 'id') else None
+        self._download_video(video_url, downloaded, video_id)
         temp_files.append(downloaded)
 
         # Step 2: Trim
@@ -333,7 +348,8 @@ class VideoClipProcessor:
         # Step 1: 영상 다운로드
         video_url = clip.video.file_path
         downloaded = self.temp_dir / f"seg{segment_idx}_src.mp4"
-        self._download_video(video_url, downloaded)
+        video_id = clip.video.id if hasattr(clip.video, 'id') else None
+        self._download_video(video_url, downloaded, video_id)
         temp_files.append(downloaded)
 
         # Step 2: 반복 (stream_loop)
@@ -379,7 +395,8 @@ class VideoClipProcessor:
         for vid_idx, video in enumerate(clip.all_videos):
             video_url = video.file_path
             downloaded = self.temp_dir / f"seg{segment_idx}_vid{vid_idx}.mp4"
-            self._download_video(video_url, downloaded)
+            video_id = video.id if hasattr(video, 'id') else None
+            self._download_video(video_url, downloaded, video_id)
             temp_files.append(downloaded)
             downloaded_videos.append(downloaded)
 
