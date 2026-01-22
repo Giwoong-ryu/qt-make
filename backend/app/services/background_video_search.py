@@ -146,7 +146,18 @@ class PexelsVideoSearch:
     }
     
     # 공통 네거티브 키워드 (모든 모드에 적용) - "christian" 제거됨
-    GLOBAL_NEGATIVE = ["logo", "text", "watermark", "brand", "smartphone", "laptop"]
+    # v1.6: timelapse/hyperlapse 필터링 추가 (2026-01-23) - 자연경관 모드에서 빠른 영상 제외
+    # v1.8: 비기독교 종교 콘텐츠 필터링 추가 (2026-01-23) - 코란/이슬람/힌두/불교 차단
+    GLOBAL_NEGATIVE = [
+        "logo", "text", "watermark", "brand", "smartphone", "laptop",
+        "timelapse", "time-lapse", "time lapse", "hyperlapse", "fast motion",
+        "sped up", "speed up", "accelerated", "quick motion",
+        # Non-Christian religious content (CRITICAL)
+        "quran", "koran", "mosque", "islam", "muslim", "mecca", "kaaba", "ramadan",
+        "buddha", "buddhist", "buddhism", "temple", "pagoda", "monk",
+        "hindu", "hinduism", "shiva", "vishnu", "ganesha", "krishna", "om symbol",
+        "jewish", "judaism", "menorah", "torah", "synagogue", "rabbi"
+    ]
 
     def __init__(self, pexels_api_key: Optional[str] = None, gemini_api_key: Optional[str] = None):
         """
@@ -224,6 +235,9 @@ class PexelsVideoSearch:
         )
         return verified
 
+    # v1.7: 3단계 Fallback 시스템 (2026-01-23)
+    MAX_CHECKS_PER_QUERY = 50  # 50개 검증했는데도 안 나오면 다음 시도
+
     def search_by_visual_description(
         self,
         visual_query: str,
@@ -233,6 +247,11 @@ class PexelsVideoSearch:
     ) -> List[PexelsVideo]:
         """
         Visual Description 기반 영상 검색 (Stage 3)
+
+        v1.7: 3단계 Fallback 시스템 추가 (2026-01-23)
+        - 1차 시도: 원본 쿼리 (2페이지, 40개)
+        - 2차 시도: 단순화 쿼리 (첫 3개 키워드, 3페이지, 60개)
+        - 3차 시도: Fallback 쿼리 (모드별 안전한 키워드, 5페이지, 100개)
 
         이 메서드는 LLM 감독이 생성한 시각적 묘사를 받아서
         Pexels에서 영상을 검색합니다.
@@ -251,6 +270,70 @@ class PexelsVideoSearch:
         exclude_ids = exclude_ids or set()
         logger.info(f"[PexelsSearch] Visual query: {visual_query} (excluding {len(exclude_ids)} IDs)")
 
+        # 3단계 Fallback 시스템
+        for attempt in range(1, 4):
+            if attempt == 1:
+                # 1차 시도: 원본 쿼리
+                query_to_use = self._apply_tone_adjustment(visual_query)
+                max_pages = 2
+                logger.info(f"[PexelsSearch] Attempt 1/3 (Original query)")
+            elif attempt == 2:
+                # 2차 시도: 단순화 (첫 3개 키워드만)
+                simplified_query = " ".join(visual_query.split()[:3])
+                query_to_use = self._apply_tone_adjustment(simplified_query)
+                max_pages = 3
+                logger.info(f"[PexelsSearch] Attempt 2/3 (Simplified: \"{simplified_query}\")")
+            else:
+                # 3차 시도: Fallback 쿼리 (모드별 안전한 키워드)
+                fallback_query = self._get_fallback_query()
+                query_to_use = self._apply_tone_adjustment(fallback_query)
+                max_pages = 5
+                logger.info(f"[PexelsSearch] Attempt 3/3 (Fallback: \"{fallback_query}\")")
+
+            # 내부 검증 로직 실행
+            verified = self._search_with_verification(
+                query_to_use, exclude_ids, max_results, max_pages
+            )
+
+            # 결과 판단
+            if len(verified) >= max_results:
+                logger.info(f"[PexelsSearch] Success on attempt {attempt}: {len(verified)} videos found")
+                return verified[:max_results]
+            elif len(verified) > 0:
+                # 부분 성공 (1-2개라도 반환) - 다음 시도 안 함
+                logger.info(f"[PexelsSearch] Partial success on attempt {attempt}: {len(verified)}/{max_results} videos (returning anyway)")
+                return verified
+            else:
+                logger.warning(f"[PexelsSearch] Attempt {attempt} failed: 0/{max_results} videos")
+
+        # 3번 다 실패 → 빈 배열 (영상 생성 실패 처리)
+        logger.error(f"[PexelsSearch] All 3 attempts failed for query: {visual_query}")
+        return []
+
+    def _get_fallback_query(self) -> str:
+        """
+        모드별 Fallback 기본 쿼리
+
+        Returns:
+            모드에 맞는 안전한 검색 키워드
+        """
+        # 현재 모드를 어떻게 판단할지? → generation_mode가 없으므로 STRATEGY_KEYWORDS의 fallback 사용
+        # 임시로 "symbolic" 모드를 기본으로 사용 (기도손/성경/십자가)
+        # TODO: 추후 generation_mode 파라미터 추가하여 정확한 모드 사용
+
+        # 현재는 symbolic 모드 fallback 사용
+        return self.STRATEGY_KEYWORDS["symbolic"]["fallback"]
+
+    def _apply_tone_adjustment(self, query: str) -> str:
+        """
+        QT 묵상 영상 톤 조정 적용
+
+        Args:
+            query: 원본 검색 쿼리
+
+        Returns:
+            톤 조정된 쿼리
+        """
         # QT 묵상 영상 톤 조정: 어두움 70% / 밝음 30%
         # 밝은 키워드 제거 및 어두운 톤 키워드 추가
         dark_tone_keywords = [
@@ -265,7 +348,7 @@ class PexelsVideoSearch:
         ]
 
         # 쿼리에서 밝은 키워드 제거
-        modified_query = visual_query
+        modified_query = query
         for bright_word in bright_keywords:
             modified_query = modified_query.replace(bright_word, "")
 
@@ -275,17 +358,43 @@ class PexelsVideoSearch:
             dark_keyword = random.choice(dark_tone_keywords)
             modified_query = f"{modified_query} {dark_keyword}"
 
-        logger.info(f"[PexelsSearch] Modified query (dark tone): {modified_query}")
+        # v1.6: timelapse 방지 - "slow" 또는 "real time" 키워드 추가
+        # Pexels에서 자연 영상 검색 시 timelapse가 상위 노출되는 문제 해결
+        anti_timelapse_keywords = ["slow", "gentle", "peaceful", "still", "calm"]
+        anti_timelapse = random.choice(anti_timelapse_keywords)
+        modified_query = f"{modified_query} {anti_timelapse}"
 
-        # 1. Pexels 검색 (수정된 쿼리 사용, 2페이지 검색으로 다양성 확보)
+        logger.info(f"[PexelsSearch] Modified query (dark tone + anti-timelapse): {modified_query}")
+        return modified_query
+
+    def _search_with_verification(
+        self,
+        query: str,
+        exclude_ids: set,
+        max_results: int,
+        max_pages: int
+    ) -> List[PexelsVideo]:
+        """
+        Pexels 검색 + Gemini Vision 검증 (내부 헬퍼)
+
+        Args:
+            query: 검색 쿼리 (톤 조정 완료된 상태)
+            exclude_ids: 제외할 영상 ID set
+            max_results: 반환할 영상 개수
+            max_pages: 검색할 최대 페이지 수
+
+        Returns:
+            검증된 PexelsVideo 리스트
+        """
+        # 1. Pexels 검색
         all_videos_data = []
         try:
-            for page in [1, 2]:  # 2페이지 검색으로 40개 후보 확보
+            for page in range(1, max_pages + 1):
                 response = requests.get(
                     self.BASE_URL,
                     headers={"Authorization": self.pexels_key},
                     params={
-                        "query": modified_query,
+                        "query": query,
                         "per_page": 20,
                         "page": page,
                         "orientation": "landscape"
@@ -307,7 +416,7 @@ class PexelsVideoSearch:
             videos_data = all_videos_data
 
             if not videos_data:
-                logger.warning("No videos found for visual query")
+                logger.warning("No videos found for query")
                 return []
 
             # PexelsVideo 객체 생성
@@ -366,8 +475,8 @@ class PexelsVideoSearch:
             is_safe = self._verify_with_gemini_vision(video.image_url)
             return (video, is_safe)
 
-        # 배치별 병렬 처리
-        for batch_start in range(0, len(candidates), BATCH_SIZE):
+        # 배치별 병렬 처리 (MAX_CHECKS_PER_QUERY 제한 적용)
+        for batch_start in range(0, min(len(candidates), self.MAX_CHECKS_PER_QUERY), BATCH_SIZE):
             # 이미 충분히 통과했으면 조기 중단
             if len(verified) >= TARGET_PASS:
                 logger.info(f"[PexelsSearch] Early stop: {len(verified)} passed (target: {TARGET_PASS})")
@@ -395,8 +504,8 @@ class PexelsVideoSearch:
 
         logger.info(f"[PexelsSearch] Result: ✅ {len(verified)} passed, ❌ {blocked_count} blocked (checked: {checked_count}/{len(candidates)})")
 
-        # 품질 좋은 순으로 max_results개만 반환
-        return verified[:max_results]
+        # 품질 좋은 순으로 반환
+        return verified
 
     def _search_pexels(
         self,
@@ -532,6 +641,20 @@ Output only: ACCEPT or REJECT
 <reject_criteria>
 REJECT if ANY of the following is present:
 
+0. TIMELAPSE/FAST MOTION (HIGH PRIORITY - ALWAYS REJECT):
+   - Cloud movement that looks unnaturally fast (timelapse clouds)
+   - Fast moving shadows indicating sun position change
+   - Star trails, star movement patterns (astrophotography timelapse)
+   - Traffic light trails, car light streaks (long exposure)
+   - Fast blooming flowers, fast growing plants
+   - Unnaturally rapid water movement (waterfalls look frozen/silky = long exposure)
+   - City lights turning on/off rapidly (day-to-night timelapse)
+   - Crowds/people moving unnaturally fast
+   - ANY visual indication of sped-up or accelerated footage
+
+   IMPORTANT: Meditation content needs SLOW, PEACEFUL footage.
+   Timelapse creates anxiety, not peace. ALWAYS REJECT.
+
 1. HUMAN FACES (HIGHEST PRIORITY - ALWAYS REJECT):
 
    ⚠️ CRITICAL: ANY PERSON IN CENTER OF FRAME = AUTOMATIC REJECT
@@ -587,6 +710,59 @@ REJECT if ANY of the following is present:
    - Violence, weapons, blood
    - Alcohol, smoking, drugs
    - Nightclub, bar, party scenes
+
+7. CULT-LIKE RELIGIOUS IMAGERY (REJECT FOR SYMBOLIC MODE):
+   - Cross with unnatural glowing/radiating light effects (lens flare ok, neon glow not ok)
+   - Overly dramatic divine light beams (theatrical/CGI style)
+   - Crosses with strange color lighting (purple, green, red neon)
+   - Otherworldly/sci-fi religious imagery
+   - Exaggerated supernatural effects around religious symbols
+   - Stock footage with "heavenly rays" that look artificial
+   - Religious symbols with HDR/over-processed look
+
+   ACCEPT (natural religious imagery):
+   - Simple wooden cross silhouette against sunset (natural light)
+   - Cross in church with natural window light
+   - Candles creating soft warm glow (not neon/electric)
+   - Bible with soft reading lamp light
+   - Sunrise/sunset creating natural golden rays
+
+8. NON-CHRISTIAN RELIGIOUS CONTENT (CRITICAL - ALWAYS REJECT):
+   ⚠️ THIS IS A CHRISTIAN APP. OTHER RELIGIONS = AUTOMATIC REJECT.
+
+   ISLAM (REJECT ALL):
+   - Quran, Koran (any Islamic scripture/text)
+   - Mosque, minaret, Islamic architecture (domed buildings with crescent)
+   - Islamic calligraphy, Arabic religious text
+   - Muslim prayer (sajda, bowing towards Mecca)
+   - Islamic geometric patterns with religious context
+   - Kaaba, Mecca, hajj pilgrimage scenes
+   - Crescent moon and star symbol (Islamic symbol)
+   - Hijab, niqab, burqa (Islamic religious dress)
+   - Islamic prayer beads (misbaha/tasbih)
+   - Ramadan, Eid imagery
+
+   HINDUISM (REJECT ALL):
+   - Hindu temples, shrines (gopuram towers)
+   - Hindu gods/deities (Shiva, Vishnu, Ganesha, Krishna)
+   - Om symbol, swastika (Hindu context)
+   - Puja, aarti ceremonies
+   - Hindu prayer items (diyas, incense, flowers)
+   - Yoga in explicitly Hindu religious context
+
+   BUDDHISM (REJECT ALL):
+   - Buddha statues, images
+   - Buddhist temples, pagodas, stupas
+   - Buddhist monks (orange/saffron robes)
+   - Meditation in explicitly Buddhist context
+   - Prayer wheels, Buddhist prayer flags
+   - Lotus in Buddhist religious context
+
+   OTHER RELIGIONS (REJECT ALL):
+   - Jewish: Menorah, Torah scroll, Star of David, synagogue, yarmulke
+   - Sikh: Gurdwara, Khanda symbol, turban in religious context
+   - Shinto: Torii gates, Shinto shrines
+   - Any non-Christian religious text, symbols, or practices
 </reject_criteria>
 
 <accept_examples>
@@ -604,6 +780,17 @@ REJECT if ANY of the following is present:
 </accept_examples>
 
 <reject_examples>
+TIMELAPSE/FAST MOTION (REJECT):
+- Fast moving clouds across sky ❌
+- Star trails or star movement ❌
+- Traffic light trails at night ❌
+- Day-to-night city transition ❌
+- Fast blooming flowers ❌
+- Silky smooth waterfalls (long exposure effect) ❌
+- Crowds moving unnaturally fast ❌
+- Shadows moving rapidly across landscape ❌
+
+HUMAN FACES (REJECT):
 - Woman sitting facing camera (even with neutral expression) ❌
 - Man looking at camera from any angle ❌
 - Person in center of frame with face visible ❌
@@ -620,6 +807,26 @@ REJECT if ANY of the following is present:
 - Pet dogs/cats (especially close-ups) ❌
 - Cute animal videos (YouTube style) ❌
 - Insects, reptiles, creepy creatures ❌
+
+CULT-LIKE IMAGERY (REJECT):
+- Cross with neon/electric glow effect ❌
+- Overly dramatic "heavenly rays" (CGI style) ❌
+- Purple/green/red glowing religious symbols ❌
+- Sci-fi style religious imagery ❌
+- Over-processed HDR religious photos ❌
+
+NON-CHRISTIAN RELIGIOUS (CRITICAL - REJECT):
+- Quran/Koran (Islamic scripture) ❌
+- Mosque, minaret, Islamic architecture ❌
+- Muslim prayer (person bowing/prostrating) ❌
+- Islamic calligraphy, Arabic religious text ❌
+- Crescent moon with star (Islamic symbol) ❌
+- Buddha statue or image ❌
+- Buddhist temple, pagoda ❌
+- Hindu temple, deity statue ❌
+- Om symbol, Hindu gods ❌
+- Menorah, Torah, Star of David ❌
+- Any non-Christian religious content ❌
 </reject_examples>
 
 CRITICAL RULE: If you can see a person's face clearly (eyes, nose, mouth), ALWAYS REJECT.
