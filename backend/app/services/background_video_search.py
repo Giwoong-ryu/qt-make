@@ -148,14 +148,11 @@ class PexelsVideoSearch:
     # 공통 네거티브 키워드 (모든 모드에 적용) - "christian" 제거됨
     # v1.6: timelapse/hyperlapse 필터링 추가 (2026-01-23) - 자연경관 모드에서 빠른 영상 제외
     # v1.8: 비기독교 종교 콘텐츠 필터링 추가 (2026-01-23) - 코란/이슬람/힌두/불교 차단
-    # v1.9: 가톨릭/정교회 콘텐츠 필터링 추가 (2026-01-23) - 개신교 앱이므로 성호긋기/마리아/묵주 차단
+    # v2.0: 가톨릭 필터 완화 (2026-01-23) - 성호 긋기만 차단, 나머지 카톨릭 이미지는 허용
     GLOBAL_NEGATIVE = [
         "logo", "text", "watermark", "brand", "smartphone", "laptop",
         "timelapse", "time-lapse", "time lapse", "hyperlapse", "fast motion",
         "sped up", "speed up", "accelerated", "quick motion",
-        # Catholic/Orthodox (Protestant app - reject Catholic imagery)
-        "catholic", "rosary", "virgin mary", "madonna", "crucifix", "confession",
-        "orthodox", "icon", "saint statue", "holy water",
         # Non-Christian religious content (CRITICAL)
         "quran", "koran", "mosque", "islam", "muslim", "mecca", "kaaba", "ramadan",
         "buddha", "buddhist", "buddhism", "temple", "pagoda", "monk",
@@ -731,43 +728,20 @@ REJECT if ANY of the following is present:
    - Bible with soft reading lamp light
    - Sunrise/sunset creating natural golden rays
 
-8. CATHOLIC/ORTHODOX IMAGERY (REJECT - THIS IS PROTESTANT APP):
-   ⚠️ THIS IS A PROTESTANT (개신교) APP. CATHOLIC IMAGERY = REJECT.
+8. SIGN OF THE CROSS (성호 긋기) - REJECT:
+   ⚠️ THIS IS A PROTESTANT (개신교) APP.
 
-   SIGN OF THE CROSS (성호 긋기):
-   - Person making sign of the cross (touching forehead, chest, shoulders)
-   - Hand movement in cross pattern on body
-   - Any blessing gesture involving cross sign
+   ONLY reject the specific gesture of "Sign of the Cross":
+   - Person making sign of the cross (touching forehead, then chest, then shoulders)
+   - Hand movement tracing cross pattern on body
+   - Any blessing gesture involving cross sign on body
 
-   MARY/SAINTS VENERATION:
-   - Virgin Mary statues or images
-   - Mary with halo, crown, or religious dress
-   - Saints with halos
-   - Praying to Mary or saints (hands toward statue)
-   - Candles lit before Mary/saint statues
+   NOTE: Other Catholic imagery is ACCEPTABLE:
+   - Catholic churches, cathedrals = OK
+   - Rosary, Virgin Mary, saints = OK
+   - Crucifix, candles, ornate interiors = OK
 
-   CATHOLIC SYMBOLS:
-   - Rosary beads (묵주) - round beads with crucifix
-   - Crucifix with Jesus body on cross (Protestant uses empty cross)
-   - Catholic priest vestments (ornate robes, mitres)
-   - Confessional booth
-   - Holy water font
-   - Incense burning in Catholic context
-   - Eucharist/communion wafer held up
-   - Catholic cathedral interior (ornate altars, statues)
-
-   ORTHODOX:
-   - Orthodox icons (painted religious images)
-   - Orthodox priests (long beards, black robes, tall hats)
-   - Orthodox church domes (onion shaped)
-   - Icon corner with candles
-
-   ACCEPT (Protestant imagery):
-   - Empty wooden cross (no body)
-   - Open Bible
-   - Simple church interior (no statues)
-   - Hands raised in worship (no cross sign)
-   - Clasped praying hands (Protestant style)
+   ONLY the gesture of 성호 긋기 (sign of cross on body) should be rejected.
 
 9. NON-CHRISTIAN RELIGIOUS CONTENT (CRITICAL - ALWAYS REJECT):
    ⚠️ THIS IS A CHRISTIAN APP. OTHER RELIGIONS = AUTOMATIC REJECT.
@@ -857,17 +831,15 @@ CULT-LIKE IMAGERY (REJECT):
 - Sci-fi style religious imagery ❌
 - Over-processed HDR religious photos ❌
 
-CATHOLIC/ORTHODOX (THIS IS PROTESTANT APP - REJECT):
-- Person making sign of the cross (성호 긋기) ❌
-- Virgin Mary statue or image ❌
-- Saints with halos ❌
-- Rosary beads (묵주) ❌
-- Crucifix with Jesus body on cross ❌
-- Catholic priest in ornate vestments ❌
-- Orthodox icons, Orthodox priests ❌
-- Praying before Mary/saint statue ❌
-- Confessional booth, holy water ❌
-- Ornate Catholic altar with statues ❌
+SIGN OF THE CROSS (성호 긋기) - REJECT:
+- Person making sign of the cross (touching forehead, chest, shoulders) ❌
+- Hand tracing cross pattern on body ❌
+
+CATHOLIC IMAGERY (ACCEPTABLE - NOT REJECTED):
+- Virgin Mary statue or image = OK ✅
+- Rosary beads = OK ✅
+- Crucifix = OK ✅
+- Catholic cathedral interior = OK ✅
 
 NON-CHRISTIAN RELIGIOUS (CRITICAL - REJECT):
 - Quran/Koran (Islamic scripture) ❌
