@@ -79,8 +79,9 @@ def process_video_task(
     clip_ids: list[str] | None = None,
     bgm_id: str | None = None,
     bgm_volume: float = 0.12,
-    generation_mode: str = "natural",  # "default" or "natural"
-    subtitle_length: str = "short"  # "short"(8자) or "long"(16자/Netflix)
+    generation_mode: str = "natural",  # "safe", "standard", "symbolic" (legacy: "default", "natural")
+    subtitle_length: str = "short",  # "short"(8자) or "long"(16자/Netflix)
+    generate_edit_pack: bool = False  # True = CapCut Edit Pack (ZIP) 생성
 ):
     """
     QT 영상 생성 메인 파이프라인
@@ -322,16 +323,23 @@ def process_video_task(
             )
 
             from app.services.visual_description_generator import VisualDescriptionGenerator
-            # generation_mode에 따라 인물 포함 여부 결정
-            # "default" (biblical) = 인물 포함 가능
-            # "natural" = 자연만
+            # generation_mode를 VisualDescriptionGenerator mode로 매핑
+            # "safe" = 자연만 (인물 없음)
+            # "standard" = 얼굴 없는 인물 허용 (뒷모습, 실루엣, 기도손)
             # "symbolic" = 상징 이미지 (기도손, 성경책, 십자가) 우선
-            allow_people = (generation_mode == "default")
-            prefer_symbolic = (generation_mode == "symbolic")
-            desc_generator = VisualDescriptionGenerator(
-                allow_people=allow_people,
-                prefer_symbolic=prefer_symbolic
-            )
+            # "default" = 레거시 - standard로 매핑
+            # "natural" = 레거시 - safe로 매핑
+            mode_mapping = {
+                "safe": VisualDescriptionGenerator.MODE_SAFE,
+                "standard": VisualDescriptionGenerator.MODE_STANDARD,
+                "symbolic": VisualDescriptionGenerator.MODE_SYMBOLIC,
+                "default": VisualDescriptionGenerator.MODE_STANDARD,  # Legacy
+                "natural": VisualDescriptionGenerator.MODE_SAFE,      # Legacy
+            }
+            visual_mode = mode_mapping.get(generation_mode, VisualDescriptionGenerator.MODE_SAFE)
+            logger.info(f"[Stage 2/3] Visual mode: {generation_mode} -> {visual_mode}")
+
+            desc_generator = VisualDescriptionGenerator(mode=visual_mode)
 
             visual_descriptions = []
             for cut in cuts:
@@ -780,15 +788,50 @@ def process_video_task(
 
         self.update_state(
             state="PROCESSING",
-            meta={"progress": 70, "step": "영상 합성 완료"}
+            meta={"progress": 70, "step": "Video composition complete"}
         )
+
+        # ========================================
+        # Step 3.5: Edit Pack 생성 (옵션)
+        # ========================================
+        edit_pack_url = None
+        if generate_edit_pack and USE_SUBTITLE_BASED_CLIPS:
+            try:
+                self.update_state(
+                    state="PROCESSING",
+                    meta={"progress": 72, "step": "Creating CapCut Edit Pack..."}
+                )
+
+                from app.services.edit_pack_generator import get_edit_pack_generator
+                edit_pack_gen = get_edit_pack_generator()
+
+                edit_pack_result = edit_pack_gen.generate_edit_pack(
+                    video_id=video_id,
+                    cuts=cuts,
+                    clip_data=subtitle_clips,
+                    srt_path=srt_path,
+                    audio_path=audio_file_path,
+                    audio_duration=audio_duration
+                )
+
+                temp_files.append(edit_pack_result.zip_path)
+                temp_files.extend(edit_pack_result.temp_files)
+
+                logger.info(
+                    f"[Step 3.5] Edit Pack created: {edit_pack_result.clips_count} clips, "
+                    f"{edit_pack_result.total_duration:.1f}s"
+                )
+
+            except Exception as e:
+                logger.warning(f"[Step 3.5] Edit Pack generation failed (continuing): {e}")
+                edit_pack_url = None
 
         # ========================================
         # Step 4: R2 업로드 (90%)
         # ========================================
         self.update_state(
             state="PROCESSING",
-            meta={"progress": 75, "step": "클라우드 업로드 중..."}
+            meta={"progress": 75, "step": "Uploading to cloud..."}
         )
 
         r2 = get_r2_storage()
@@ -824,9 +867,18 @@ def process_video_task(
                 folder="base-videos",
                 content_type="video/mp4"
             )
-            logger.info(f"[Step 4/5] 베이스 영상 업로드 완료: {base_video_url}")
+            logger.info(f"[Step 4/5] Base video uploaded: {base_video_url}")
 
-        logger.info(f"[Step 4/5] R2 업로드 완료 (video, srt, audio, base_video)")
+        # ✅ Edit Pack 업로드 (옵션)
+        if generate_edit_pack and 'edit_pack_result' in locals() and edit_pack_result:
+            edit_pack_url = r2.upload_file(
+                file_path=edit_pack_result.zip_path,
+                folder="edit-packs",
+                content_type="application/zip"
+            )
+            logger.info(f"[Step 4/5] Edit Pack uploaded: {edit_pack_url}")
+
+        logger.info(f"[Step 4/5] R2 upload complete (video, srt, audio, base_video, edit_pack)")
 
         self.update_state(
             state="PROCESSING",
@@ -857,6 +909,10 @@ def process_video_task(
         if base_video_url:
             update_data["base_video_path"] = base_video_url
 
+        # ✅ Edit Pack URL 저장 (CapCut 편집용)
+        if edit_pack_url:
+            update_data["edit_pack_url"] = edit_pack_url
+
         supabase.table("videos").update(update_data).eq("id", video_id).execute()
 
         # 클립 사용 횟수 증가
@@ -885,7 +941,7 @@ def process_video_task(
             meta={"progress": 100, "step": "완료!"}
         )
 
-        return {
+        result = {
             "status": "completed",
             "video_id": video_id,
             "video_url": video_url,
@@ -893,6 +949,12 @@ def process_video_task(
             "duration": audio_duration,
             "clips_used": used_clip_ids
         }
+
+        # Edit Pack URL 추가 (생성된 경우)
+        if edit_pack_url:
+            result["edit_pack_url"] = edit_pack_url
+
+        return result
 
     except Exception as e:
         logger.exception(f"Video processing failed: {e}")

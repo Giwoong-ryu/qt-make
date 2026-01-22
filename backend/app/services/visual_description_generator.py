@@ -163,23 +163,58 @@ class VisualDescriptionGenerator:
         ✅ QT: "wilderness desert ancient biblical dramatic sky solitude"
     """
 
-    def __init__(self, gemini_api_key: str = None, allow_people: bool = False, prefer_symbolic: bool = False):
+    # Mode constants for clarity
+    MODE_SAFE = "safe"          # No people at all - nature only
+    MODE_STANDARD = "standard"  # Faceless people allowed (3-4 per 2-min video)
+    MODE_SYMBOLIC = "symbolic"  # Symbolic images (praying hands, bible, cross)
+
+    def __init__(
+        self,
+        gemini_api_key: str = None,
+        allow_people: bool = False,
+        prefer_symbolic: bool = False,
+        mode: str = None  # New: explicit mode override
+    ):
         """
-        초기화
+        Initialize Visual Description Generator
 
         Args:
-            gemini_api_key: Gemini API 키
-            allow_people: True면 인물 포함 가능 (Biblical 모드), False면 자연만 (기본)
-            prefer_symbolic: True면 상징 이미지 우선 (기도손, 성경책, 십자가)
+            gemini_api_key: Gemini API key
+            allow_people: True = people allowed (for backward compatibility)
+            prefer_symbolic: True = symbolic images first
+            mode: Explicit mode - "safe", "standard", or "symbolic"
+                  If provided, overrides allow_people/prefer_symbolic
+
+        Mode Descriptions:
+            - "safe": Only nature, landscapes, abstract. NO people at all.
+            - "standard": Faceless people allowed (backs, silhouettes, praying hands).
+                          Target: 3-4 clips with people per 2-minute video.
+            - "symbolic": Symbolic religious imagery (cross, bible, candles, praying hands).
         """
         self.api_key = gemini_api_key or settings.GEMINI_API_KEY
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required")
 
-        self.allow_people = allow_people
-        self.prefer_symbolic = prefer_symbolic
+        # Mode-based configuration
+        if mode:
+            self.mode = mode
+            self.allow_people = (mode == self.MODE_STANDARD)
+            self.prefer_symbolic = (mode == self.MODE_SYMBOLIC)
+        else:
+            # Backward compatibility
+            self.mode = self.MODE_SYMBOLIC if prefer_symbolic else (
+                self.MODE_STANDARD if allow_people else self.MODE_SAFE
+            )
+            self.allow_people = allow_people
+            self.prefer_symbolic = prefer_symbolic
+
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+
+        logger.info(
+            f"[VisualDescriptionGenerator] Initialized with mode={self.mode}, "
+            f"allow_people={self.allow_people}, prefer_symbolic={self.prefer_symbolic}"
+        )
 
     def _get_bible_visual_hints(self, text: str) -> Optional[str]:
         """

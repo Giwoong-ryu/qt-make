@@ -757,7 +757,6 @@ class WhisperService:
         3. 조사/어미가 분리되지 않도록 공백 기준 분할
         4. 공백 없는 한국어는 중간에서 분리
         """
-        logger.info(f"[DEBUG 2줄 분할] 입력: '{text[:30]}...'")  # 🔴 디버그 로그
         text = text.strip()
 
         # 16자 이하면 1줄로 유지 (불필요한 줄바꿈 방지)
@@ -829,8 +828,7 @@ class WhisperService:
                     last_word_clean = last_word_line2.rstrip(',.!?…')
                     for ending in self.KOREAN_SENTENCE_ENDINGS:
                         if last_word_clean.endswith(ending) and len(last_word_clean) > len(ending):
-                            logger.info(f"[DEBUG] line2 종결어미 발견: '{line2}' (점수 +100)")
-                            score += 100  # 종결어미 발견 시 큰 보너스
+                            score += 100  # Sentence ending bonus
                             break
 
                 # 2순위: 균등 분할 (글자수 차이가 적을수록 좋음)
@@ -851,7 +849,6 @@ class WhisperService:
             mid = len(text) // 2
             return text[:mid].strip() + "\n" + text[mid:].strip()
 
-        logger.info(f"[DEBUG 분할 결과] line1: '{line1}' / line2: '{line2}'")  # 🔴
         return line1 + "\n" + line2
 
     @staticmethod
