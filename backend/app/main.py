@@ -127,6 +127,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 # 라우터 등록
+logger.info("라우터 등록 시작...")
 app.include_router(auth_router)
 app.include_router(stt_router)
 app.include_router(dictionary_router)
@@ -181,6 +182,12 @@ async def health():
     except Exception as e:
         checks["r2"] = f"error: {str(e)[:50]}"
 
+    # 등록된 라우트 확인 (디버깅용)
+    routes = []
+    for route in request.app.routes:
+        if hasattr(route, "path"):
+            routes.append(route.path)
+
     status_code = 200 if all_ok else 503
     return JSONResponse(
         status_code=status_code,
@@ -188,6 +195,7 @@ async def health():
             "status": "healthy" if all_ok else "degraded",
             "env": settings.ENV,
             "checks": checks,
+            "routes": sorted(routes)  # 라우트 목록 반환
         }
     )
 
@@ -493,8 +501,9 @@ async def list_videos(
     Returns:
         videos 리스트
     """
+    # schema.sql 기본 필드만 조회 (migration 미실행 대비)
     result = supabase.table("videos") \
-        .select("id, title, status, duration, video_file_path, srt_file_path, edit_pack_path, thumbnail_url, created_at, completed_at, error_message, thumbnail_layout, clips_used, bgm_id, bgm_volume") \
+        .select("id, title, status, duration, video_file_path, srt_file_path, created_at, completed_at, error_message, clips_used") \
         .eq("church_id", church_id) \
         .order("created_at", desc=True) \
         .range(offset, offset + limit - 1) \
