@@ -70,8 +70,18 @@ app = FastAPI(
 # app.state.limiter = limiter
 # app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS 설정 (환경변수 기반)
-cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
+# CORS 설정 (환경변수 + 강제 추가)
+# Railway 환경변수에 의해 덮어씌워질 경우를 대비해 코드 레벨에서 필수 도메인 보장
+raw_origins = settings.CORS_ORIGINS.split(",")
+required_origins = [
+    "https://www.qt-make.com", 
+    "https://qt-make.com", 
+    "http://localhost:3000",
+    "http://localhost:3001"
+]
+# 중복 제거 및 병합
+cors_origins = list(set([o.strip() for o in raw_origins + required_origins if o.strip()]))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
