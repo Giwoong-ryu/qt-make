@@ -3,8 +3,12 @@ Celery 백그라운드 작업 - QT 영상 생성 파이프라인
 """
 import logging
 import os
+import tempfile as tempfile_module
 from datetime import datetime
+import urllib.parse
 from uuid import uuid4
+
+import httpx as httpx_module
 
 from celery import Task
 
@@ -106,8 +110,36 @@ def process_video_task(
 
     supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
     temp_files = []  # 정리할 임시 파일들
+    local_audio_path = None  # R2에서 다운로드한 로컬 경로
 
     try:
+        # ========================================
+        # Step 0: R2 URL인 경우 로컬로 다운로드
+        # ========================================
+        if audio_file_path.startswith("http"):
+            self.update_state(
+                state="PROCESSING",
+                meta={"progress": 2, "step": "오디오 파일 다운로드 중..."}
+            )
+
+            # URL에서 확장자 추출
+            audio_url_parsed = urllib.parse.urlparse(audio_file_path)
+            ext = os.path.splitext(audio_url_parsed.path)[1] or ".m4a"
+
+            # 임시 파일로 다운로드
+            temp_dir = tempfile_module.gettempdir()
+            local_audio_path = os.path.join(temp_dir, f"{uuid4()}{ext}")
+
+            with httpx_module.Client(timeout=60.0) as client:
+                response = client.get(audio_file_path)
+                response.raise_for_status()
+                with open(local_audio_path, "wb") as f:
+                    f.write(response.content)
+
+            temp_files.append(local_audio_path)
+            logger.info(f"Audio downloaded from R2: {local_audio_path}")
+            audio_file_path = local_audio_path
+
         # ========================================
         # Step 1: 음성 → Whisper raw transcription (10%)
         # ========================================
@@ -736,9 +768,8 @@ def process_video_task(
         clip_processor = get_clip_processor()
 
         # 임시 출력 경로
-        import tempfile
         temp_output_path = os.path.join(
-            tempfile.gettempdir(),
+            tempfile_module.gettempdir(),
             f"qt_composed_{video_id}.mp4"
         )
 

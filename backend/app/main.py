@@ -324,19 +324,20 @@ async def upload_videos(
     audio_paths = []
     video_ids = []
 
-    temp_dir = tempfile.gettempdir()
-
     for file in files:
-        # 임시 파일로 저장
+        # 오디오 파일을 R2에 업로드 (API와 Worker가 파일 공유 가능하도록)
         file_id = str(uuid4())
         file_ext = os.path.splitext(file.filename)[1].lower()
-        temp_path = os.path.join(temp_dir, f"{file_id}{file_ext}")
 
         content = await file.read()
-        with open(temp_path, "wb") as f:
-            f.write(content)
 
-        audio_paths.append(temp_path)
+        # R2에 업로드
+        r2_key = f"audio/{file_id}{file_ext}"
+        content_type = "audio/mpeg" if file_ext == ".mp3" else f"audio/{file_ext[1:]}"
+        audio_url = r2.upload_bytes(content, r2_key, content_type)
+
+        logger.info(f"Audio uploaded to R2: {audio_url}")
+        audio_paths.append(audio_url)
 
         # videos 테이블에 레코드 생성 (pending 상태)
         # title: 프론트엔드에서 보낸 값 우선, 없으면 파일명 사용
@@ -344,7 +345,7 @@ async def upload_videos(
         video_record = supabase.table("videos").insert({
             "church_id": church_id,
             "title": video_title,
-            "audio_file_path": temp_path,
+            "audio_file_path": audio_url,  # R2 URL 저장
             "status": "pending"
         }).execute()
 
