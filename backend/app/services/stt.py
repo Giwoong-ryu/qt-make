@@ -453,29 +453,39 @@ class WhisperService:
             duration = end - current_start
 
             # 끊기 조건 확인
+            # 1. 길이/시간 초과 (Hard Limit)
+            # 2. 문장 종결 (Sentence End)
+            # 3. 적절한 길이 + 조사/연결어미 (Soft Break) - 너무 길어지기 전에 의미 단위로 끊기
+            
+            # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
+            # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
+            is_soft_break = (
+                len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.6) and
+                self._is_soft_break_word(word)
+            )
+
             should_break = (
                 len(new_text) > self.MAX_CHARS_PER_SUBTITLE or  # 글자수 초과
                 duration > self.MAX_DURATION or                 # 시간 초과
-                is_word_end                                     # ★ 단어가 종결어미면 즉시 끊기
+                is_word_end or                                  # 문장 종결
+                is_soft_break                                   # 자연스러운 분기점
             )
 
             if should_break:
-                # 문장 끝(종결어미)인 경우: 현재 단어까지 포함해서 저장 (문장 완성)
-                if is_word_end:
+                # 문장 끝(종결어미)인 경우 OR Soft Break인 경우: 현재 단어 포함해서 저장
+                if is_word_end or is_soft_break:
                     current_words.append(word_data)
                     subtitles.append({
                         'start': current_start,
-                        'end': end,  # 현재 단어 끝나는 시간
+                        'end': end,
                         'text': new_text
                     })
-                    # 초기화
                     current_words = []
                     current_text = ""
                     current_start = None
 
-                # 글자수/시간 초과지만 문장은 안 끝난 경우
+                # 글자수/시간 초과지만 문장은 안 끝난 경우 (Hard Limit)
                 elif current_text:
-                    # 현재 단어는 다음 블록으로 넘김 (단어 중간 절단 방지)
                     subtitles.append({
                         'start': current_start,
                         'end': current_words[-1].get('end', end),
@@ -486,12 +496,10 @@ class WhisperService:
                     current_start = start
                 
                 else:
-                    # (예외 케이스) 단어 하나가 너무 긴 경우 -> 그냥 넣음
                     current_words.append(word_data)
                     current_text = new_text
 
             else:
-                # 안 끊고 계속 이어감
                 current_words.append(word_data)
                 current_text = new_text
 
@@ -504,6 +512,22 @@ class WhisperService:
             })
 
         return subtitles
+
+    def _is_soft_break_word(self, word: str) -> bool:
+        """
+        단어가 조사나 연결어미로 끝나서, 여기서 끊어도 자연스러운지 확인
+        """
+        # 1. 조사 체크
+        for particle in self.KOREAN_PARTICLES:
+            if word.endswith(particle):
+                return True
+        
+        # 2. 연결어미 체크
+        for connecting in self.KOREAN_CONNECTING_ENDINGS:
+            if word.endswith(connecting):
+                return True
+                
+        return False
 
     # 한국어 연결어미 (끊으면 안 되는 패턴)
     # Kss 라이브러리 기준: 이 패턴으로 끝나면 문장이 이어짐
@@ -564,37 +588,33 @@ class WhisperService:
         if text[-1] in '.!?。':
             return True
 
-        # 2. 마지막 단어 추출
+        # 마지막 단어 추출
         words = text.split()
         if not words:
             return False
 
         last_word = words[-1]
 
-        # 3. 조사로 끝나는 경우 - 절대 끊지 않음 (최우선!)
-        # 예: "오늘 우리가" → 끊으면 안 됨
-        # 긴 조사부터 체크 (예: "에서"가 "서"보다 먼저)
+        # 2. 종결어미로 끝나는 경우 - 끊음 (우선순위 상향!)
+        # "계셨어요" 처럼 조사와 헷갈릴 수 있는 경우라도 종결어미가 확실하면 끊음
+        for ending in sorted(self.KOREAN_SENTENCE_ENDINGS, key=len, reverse=True):
+            if last_word.endswith(ending):
+                # 최소 길이 검증: 종결어미보다 단어가 길어야 함 (단일 자음/모음 방지)
+                # 단, '요', '죠' 같은 1글자 어미는 허용 (리스트에 있으므로)
+                if len(last_word) >= len(ending):
+                    return True
+
+        # 3. 조사로 끝나는 경우 - 절대 끊지 않음
         for particle in sorted(self.KOREAN_PARTICLES, key=len, reverse=True):
             if last_word.endswith(particle):
-                # 단어가 조사만으로 이루어진 경우도 체크
-                # 예: "가", "를", "에서" 등
                 return False
 
         # 4. 연결어미로 끝나는 경우 - 절대 끊지 않음
-        # 긴 패턴부터 체크 (정확도 향상)
         for connecting in sorted(self.KOREAN_CONNECTING_ENDINGS, key=len, reverse=True):
             if text.endswith(connecting):
                 return False
 
-        # 5. 종결어미로 끝나는 경우 - 끊음
-        # 긴 패턴부터 체크 (정확도 향상)
-        for ending in sorted(self.KOREAN_SENTENCE_ENDINGS, key=len, reverse=True):
-            if last_word.endswith(ending):
-                # 최소 길이 검증: 종결어미보다 단어가 길어야 함
-                if len(last_word) > len(ending) or len(last_word) >= 2:
-                    return True
-
-        # 6. 애매한 경우 - 끊지 않음 (안전하게)
+        # 5. 애매한 경우 - 끊지 않음
         return False
 
     def _should_break_before_word(self, word: str) -> bool:
