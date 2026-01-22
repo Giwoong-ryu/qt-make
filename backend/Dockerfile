@@ -22,9 +22,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 애플리케이션 복사
 COPY . .
 
-# 배경 클립 사전 다운로드 (빌드 시 캐싱, 실패해도 계속 진행)
-RUN mkdir -p /app/background_clips && \
-    python scripts/download_popular_clips.py --count 50 --output /app/background_clips || true
+# 로컬 배경 클립 복사 (bible_video_samples - 56개)
+RUN mkdir -p /app/background_clips/local
+COPY bible_video_samples/*.mp4 /app/background_clips/local/
+
+# Pexels 인기 클립 사전 다운로드 (DB 기반, 실패해도 계속 진행)
+RUN python scripts/download_popular_clips.py --count 30 --output /app/background_clips || true
 
 # 프로젝트 폰트를 시스템 폰트 디렉토리로 복사 및 캐시 업데이트 (타임아웃 방지)
 RUN mkdir -p /usr/share/fonts/truetype/custom && \

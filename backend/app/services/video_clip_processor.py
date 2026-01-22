@@ -256,19 +256,30 @@ class VideoClipProcessor:
         Returns:
             다운로드된 파일 경로
         """
-        # Step 1: 로컬 캐시 확인 (Docker 빌드 시 사전 다운로드된 클립)
-        if video_id:
-            cache_dir = Path("/app/background_clips")
-            cached_file = cache_dir / f"pexels_{video_id}.mp4"
+        import shutil
 
+        cache_dir = Path("/app/background_clips")
+
+        # Step 1: Pexels 캐시 확인 (Docker 빌드 시 사전 다운로드된 클립)
+        if video_id:
+            cached_file = cache_dir / f"pexels_{video_id}.mp4"
             if cached_file.exists():
-                logger.info(f"[CACHE HIT] Using cached clip: pexels_{video_id}.mp4")
-                # 캐시 파일을 output_path로 복사
-                import shutil
+                logger.info(f"[CACHE HIT] Using cached Pexels clip: pexels_{video_id}.mp4")
                 shutil.copy(cached_file, output_path)
                 return output_path
 
-        # Step 2: 캐시 없으면 Pexels에서 다운로드
+        # Step 2: 로컬 클립 폴백 (bible_video_samples - 56개 자연 영상)
+        local_clips_dir = cache_dir / "local"
+        if local_clips_dir.exists():
+            local_clips = list(local_clips_dir.glob("*.mp4"))
+            if local_clips:
+                import random
+                selected_clip = random.choice(local_clips)
+                logger.info(f"[LOCAL CLIP] Using local clip: {selected_clip.name}")
+                shutil.copy(selected_clip, output_path)
+                return output_path
+
+        # Step 3: 캐시 없으면 Pexels에서 다운로드
         logger.info(f"[DOWNLOAD] Downloading from Pexels: {url[:50]}...")
 
         response = requests.get(url, stream=True, timeout=30)
