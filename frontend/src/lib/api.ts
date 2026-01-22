@@ -336,6 +336,9 @@ export async function createVideoWithOptions(
   if (options.subtitleLength) {
     formData.append("subtitle_length", options.subtitleLength);
   }
+  if (options.generateEditPack !== undefined) {
+    formData.append("generate_edit_pack", options.generateEditPack.toString());
+  }
 
   const response = await api.post("/api/videos/upload", formData, {
     // Content-Type을 직접 설정하지 않음 - Axios가 FormData에 맞게 boundary 포함하여 자동 설정

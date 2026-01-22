@@ -63,6 +63,8 @@ export interface VideoItem {
   video_file_path: string | null;
   srt_file_path: string | null;
   thumbnail_url: string | null;
+  edit_pack_url?: string | null;
+  edit_pack_path?: string | null;  // Edit Pack ZIP (CapCut/Canva용)
   created_at: string;
   completed_at: string | null;
   error_message?: string | null;  // 실패 시 에러 메시지
@@ -127,6 +129,7 @@ export interface VideoOptions {
   generateThumbnail?: boolean; // 썸네일 생성 여부
   generationMode?: "safe" | "standard" | "symbolic"; // 생성 방식: safe=자연만, standard=인물허용, symbolic=상징
   subtitleLength?: "short" | "long"; // 자막 길이 (short: 8자, long: 16자)
+  generateEditPack?: boolean; // Edit Pack 생성 (CapCut/Canva용 클립+자막 ZIP)
 }
 
 // 자막 세그먼트 (편집용)

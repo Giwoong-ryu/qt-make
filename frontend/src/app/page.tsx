@@ -19,6 +19,7 @@ import {
   Layers,
   ChevronDown,
   Type,
+  Package,
 } from "lucide-react";
 import {
   ProgressCard,
@@ -60,6 +61,7 @@ export default function Home() {
   const [bgmVolume, setBgmVolume] = useState(0.12);
   const [generationMode, setGenerationMode] = useState<"safe" | "standard" | "symbolic">("safe"); // 생성 방식: safe=자연만, standard=인물허용, symbolic=상징
   const [subtitleLength, setSubtitleLength] = useState<"short" | "long">("short"); // 자막 길이
+  const [generateEditPack, setGenerateEditPack] = useState(false); // Edit Pack 생성 (CapCut/Canva)
 
   // 영상 편집 모달 상태
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -353,6 +355,7 @@ export default function Home() {
           generateThumbnail: true, // 자연생성/기본설정 모두 썸네일 생성
           generationMode: generationMode,
           subtitleLength: subtitleLength, // 자막 길이
+          generateEditPack: generateEditPack, // Edit Pack (CapCut/Canva)
         };
 
         const response = await createVideoWithOptions(
@@ -386,6 +389,7 @@ export default function Home() {
     setBgmVolume(0.12);
     setGenerationMode("safe");
     setSubtitleLength("short");
+    setGenerateEditPack(false);
     setSelectedTemplateId(null);
     setIsUploading(false);
   }, [files, updateFileStatus, startPolling, videoTitle, selectedClips, selectedBGM, bgmVolume, churchId, generationMode, subtitleLength]);
@@ -574,6 +578,22 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+
+              {/* Edit Pack 생성 (CapCut/Canva용) */}
+              <label className="flex items-center gap-3 p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={generateEditPack}
+                  onChange={(e) => setGenerateEditPack(e.target.checked)}
+                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-foreground">Edit Pack 생성</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    CapCut/Canva에서 편집할 수 있는 클립+자막 ZIP 파일
+                  </p>
+                </div>
+              </label>
 
               {pendingFiles.map((file) => (
                 <div key={file.id} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
@@ -774,6 +794,16 @@ export default function Home() {
                             >
                               <Download className="w-4 h-4" />
                               자막
+                            </a>
+                          )}
+                          {(video.edit_pack_path || video.edit_pack_url) && (
+                            <a
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=edit_pack`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-primary text-primary text-sm font-medium rounded-lg hover:bg-primary/10 transition-colors"
+                              title="CapCut/Canva 편집용 ZIP 다운로드"
+                            >
+                              <Package className="w-4 h-4" />
+                              편집팩
                             </a>
                           )}
                           <button

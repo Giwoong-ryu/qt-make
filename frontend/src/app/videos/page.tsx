@@ -12,6 +12,7 @@ import {
   Search,
   Filter,
   X,
+  Package,
 } from "lucide-react";
 import { DashboardLayout, VideoEditModal } from "@/components";
 import { getVideos, deleteVideo } from "@/lib/api";
@@ -351,9 +352,20 @@ export default function VideosPage() {
                             <a
                               href={`${API_URL}/api/videos/${video.id}/download?file_type=srt`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-accent transition-colors"
+                              title="자막 파일(SRT) 다운로드"
                             >
                               <Download className="w-4 h-4" />
                               자막
+                            </a>
+                          )}
+                          {(video.edit_pack_path || video.edit_pack_url) && (
+                            <a
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=edit_pack`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-primary text-primary text-sm font-medium rounded-lg hover:bg-primary/10 transition-colors"
+                              title="CapCut/Canva 편집용 ZIP 다운로드"
+                            >
+                              <Package className="w-4 h-4" />
+                              편집팩
                             </a>
                           )}
                           <button

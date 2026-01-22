@@ -494,7 +494,7 @@ async def list_videos(
         videos 리스트
     """
     result = supabase.table("videos") \
-        .select("id, title, status, duration, video_file_path, srt_file_path, thumbnail_url, created_at, completed_at, error_message, thumbnail_layout, clips_used, bgm_id, bgm_volume") \
+        .select("id, title, status, duration, video_file_path, srt_file_path, edit_pack_path, thumbnail_url, created_at, completed_at, error_message, thumbnail_layout, clips_used, bgm_id, bgm_volume") \
         .eq("church_id", church_id) \
         .order("created_at", desc=True) \
         .range(offset, offset + limit - 1) \
@@ -672,23 +672,18 @@ async def delete_videos_batch(request: DeleteVideosRequest):
 @app.get("/api/videos/{video_id}/download")
 async def download_video_file(
     video_id: str,
-    file_type: str = Query(default="video", regex="^(video|srt)$")
+    file_type: str = Query(default="video", regex="^(video|srt|edit_pack)$")
 ):
     """
-    영상/자막 파일 다운로드 프록시
-    
-    브라우저의 CORS 제한을 우회하여 실제 파일 다운로드를 보장합니다.
+    영상/자막/편집파일 다운로드 프록시
     
     Args:
         video_id: 영상 UUID
-        file_type: 'video' 또는 'srt'
-    
-    Returns:
-        StreamingResponse with Content-Disposition header
+        file_type: 'video', 'srt', 'edit_pack'
     """
     # 영상 정보 조회
     video = supabase.table("videos") \
-        .select("id, title, video_file_path, srt_file_path") \
+        .select("id, title, video_file_path, srt_file_path, edit_pack_path") \
         .eq("id", video_id) \
         .execute()
     
@@ -701,10 +696,14 @@ async def download_video_file(
         file_url = video_data.get("video_file_path")
         content_type = "video/mp4"
         extension = "mp4"
-    else:
+    elif file_type == "srt":
         file_url = video_data.get("srt_file_path")
         content_type = "text/plain; charset=utf-8"
         extension = "srt"
+    else:  # edit_pack
+        file_url = video_data.get("edit_pack_path")
+        content_type = "application/zip"
+        extension = "zip"
     
     if not file_url:
         raise HTTPException(status_code=404, detail=f"{file_type} 파일이 없습니다.")
