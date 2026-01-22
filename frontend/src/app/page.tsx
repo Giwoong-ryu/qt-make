@@ -58,7 +58,7 @@ export default function Home() {
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [selectedBGM, setSelectedBGM] = useState<string | null>(null);
   const [bgmVolume, setBgmVolume] = useState(0.12);
-  const [generationMode, setGenerationMode] = useState<"default" | "natural">("natural"); // 생성 방식
+  const [generationMode, setGenerationMode] = useState<"default" | "natural" | "symbolic">("natural"); // 생성 방식
   const [subtitleLength, setSubtitleLength] = useState<"short" | "long">("short"); // 자막 길이
 
   // 영상 편집 모달 상태
@@ -527,8 +527,8 @@ export default function Home() {
                       value={selectedTemplateId || generationMode}
                       onChange={(e) => {
                         const value = e.target.value;
-                        if (value === "natural" || value === "default") {
-                          setGenerationMode(value as "default" | "natural");
+                        if (value === "natural" || value === "default" || value === "symbolic") {
+                          setGenerationMode(value as "default" | "natural" | "symbolic");
                           setSelectedTemplateId(null);
                         } else {
                           handleTemplateSelect(value);
@@ -537,6 +537,7 @@ export default function Home() {
                       className="w-full appearance-none pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <option value="natural">자연 배경 (기본)</option>
+                      <option value="symbolic">상징 이미지 (기도/십자가)</option>
                       <option value="default">인물 포함 (Biblical)</option>
                       {templates.length > 0 && <option disabled>─────────────</option>}
                       {templates.map((template) => (

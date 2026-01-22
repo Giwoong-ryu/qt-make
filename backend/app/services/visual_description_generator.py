@@ -163,19 +163,21 @@ class VisualDescriptionGenerator:
         ✅ QT: "wilderness desert ancient biblical dramatic sky solitude"
     """
 
-    def __init__(self, gemini_api_key: str = None, allow_people: bool = False):
+    def __init__(self, gemini_api_key: str = None, allow_people: bool = False, prefer_symbolic: bool = False):
         """
         초기화
 
         Args:
             gemini_api_key: Gemini API 키
             allow_people: True면 인물 포함 가능 (Biblical 모드), False면 자연만 (기본)
+            prefer_symbolic: True면 상징 이미지 우선 (기도손, 성경책, 십자가)
         """
         self.api_key = gemini_api_key or settings.GEMINI_API_KEY
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required")
 
         self.allow_people = allow_people
+        self.prefer_symbolic = prefer_symbolic
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
@@ -234,16 +236,31 @@ class VisualDescriptionGenerator:
             logger.info(f"[VisualDescGen] Bible hints found: {bible_hints[:60]}...")
 
         # Step 2: QT 특화 프롬프트
+        # prefer_symbolic일 경우 상징 이미지 우선
+        if self.prefer_symbolic:
+            style_instruction = "SYMBOLIC RELIGIOUS IMAGERY: praying hands, bible, cross, candles, worship hands"
+        elif self.allow_people:
+            style_instruction = "BIBLICAL SCENES with people when appropriate"
+        else:
+            style_instruction = "NATURE and ATMOSPHERIC imagery"
+        
+        if self.prefer_symbolic:
+            avoid_instruction = "Include symbolic religious objects (hands, cross, bible, candles). Avoid faces and cityscapes."
+        elif self.allow_people:
+            avoid_instruction = "Include people, biblical characters, worship scenes when relevant"
+        else:
+            avoid_instruction = "NEVER include human faces or specific people"
+            
         prompt = f'''You are a **Christian QT (Quiet Time) video specialist**. Generate Pexels search keywords for meditation/devotional background videos.
 
 **CRITICAL CONTEXT**: This is for Korean church QT videos - devotional content based on Bible verses.
 
 **STRICT RULES**:
 1. Output 5-8 keywords ONLY (not sentences)
-2. Focus on {'NATURE and ATMOSPHERIC imagery' if not self.allow_people else 'BIBLICAL SCENES with people when appropriate'}
-3. {'NEVER include human faces or specific people' if not self.allow_people else 'Include people, biblical characters, worship scenes when relevant'}
+2. Focus on {style_instruction}
+3. {avoid_instruction}
 4. Match the EMOTIONAL/SPIRITUAL TONE, not literal illustrations
-5. Prefer: {'landscapes, light effects, weather, abstract nature' if not self.allow_people else 'biblical scenes, worship, prayer, people in devotion, nature'}
+5. {'Prefer: praying hands, open bible, cross silhouette, candles, worship hands raised' if self.prefer_symbolic else ('Prefer: landscapes, light effects, weather, abstract nature' if not self.allow_people else 'Prefer: biblical scenes, worship, prayer, people in devotion, nature')}
 
 **Content Matching Strategy**:
 

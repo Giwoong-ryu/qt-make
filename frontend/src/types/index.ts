@@ -125,7 +125,7 @@ export interface VideoOptions {
   bgmId?: string;            // 선택된 BGM (없으면 기본값)
   bgmVolume?: number;        // BGM 볼륨 (0-1, 기본 0.12)
   generateThumbnail?: boolean; // 썸네일 생성 여부
-  generationMode?: "default" | "natural"; // 생성 방식 (기본설정 or 자연생성)
+  generationMode?: "default" | "natural" | "symbolic"; // 생성 방식
   subtitleLength?: "short" | "long"; // 자막 길이 (short: 8자, long: 16자)
 }
 

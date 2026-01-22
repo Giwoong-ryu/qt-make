@@ -321,8 +321,13 @@ def process_video_task(
             # generation_mode에 따라 인물 포함 여부 결정
             # "default" (biblical) = 인물 포함 가능
             # "natural" = 자연만
+            # "symbolic" = 상징 이미지 (기도손, 성경책, 십자가) 우선
             allow_people = (generation_mode == "default")
-            desc_generator = VisualDescriptionGenerator(allow_people=allow_people)
+            prefer_symbolic = (generation_mode == "symbolic")
+            desc_generator = VisualDescriptionGenerator(
+                allow_people=allow_people,
+                prefer_symbolic=prefer_symbolic
+            )
 
             visual_descriptions = []
             for cut in cuts:
