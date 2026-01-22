@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { API_URL } from "@/lib/api-config";
+
 interface TestPaymentButtonProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
@@ -16,7 +18,6 @@ export default function TestPaymentButton({
 }: TestPaymentButtonProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   const handleTestSubscribe = async () => {
     if (!user?.church_id) {

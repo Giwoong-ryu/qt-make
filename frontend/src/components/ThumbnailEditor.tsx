@@ -20,6 +20,7 @@ import {
     Check,
     Eye,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api-config';
 
 // 텍스트 박스 타입
 interface TextBox {
@@ -244,7 +245,7 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
         // R2 URL인 경우 백엔드 프록시 사용 (CORS 우회)
         let imageUrl = backgroundImageUrl;
         if (backgroundImageUrl.includes('r2.dev') || backgroundImageUrl.includes('pub-')) {
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const apiBase = API_URL;
             imageUrl = `${apiBase}/api/proxy/image?url=${encodeURIComponent(backgroundImageUrl)}`;
             console.log('ThumbnailEditor: Using proxy URL', imageUrl);
         }
@@ -856,182 +857,132 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
 
             <div className="flex gap-6 items-start justify-center">
                 {/* 왼쪽: 캔버스 + 액션 버튼 */}
-            <div className="flex flex-col space-y-4">
-                {/* Canvas 영역 */}
-                <div
-                    ref={containerRef}
-                    className="relative bg-black rounded-xl overflow-hidden"
-                    style={{ width: `${PREVIEW_WIDTH}px`, height: `${PREVIEW_HEIGHT}px` }}
-                >
-                    <canvas
-                        ref={canvasRef}
-                        width={CANVAS_WIDTH}
-                        height={CANVAS_HEIGHT}
-                        className="cursor-crosshair"
-                        style={{
-                            width: `${PREVIEW_WIDTH}px`,
-                            height: `${PREVIEW_HEIGHT}px`,
-                        }}
-                        onClick={handleCanvasClick}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                    />
+                <div className="flex flex-col space-y-4">
+                    {/* Canvas 영역 */}
+                    <div
+                        ref={containerRef}
+                        className="relative bg-black rounded-xl overflow-hidden"
+                        style={{ width: `${PREVIEW_WIDTH}px`, height: `${PREVIEW_HEIGHT}px` }}
+                    >
+                        <canvas
+                            ref={canvasRef}
+                            width={CANVAS_WIDTH}
+                            height={CANVAS_HEIGHT}
+                            className="cursor-crosshair"
+                            style={{
+                                width: `${PREVIEW_WIDTH}px`,
+                                height: `${PREVIEW_HEIGHT}px`,
+                            }}
+                            onClick={handleCanvasClick}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                        />
 
-                    {/* 드래그 힌트 */}
-                    {!selectedBox && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-black/60 rounded-full text-white text-xs pointer-events-none">
-                            <Move className="w-3 h-3" />
-                            텍스트를 드래그하여 위치 조정
-                        </div>
-                    )}
-                </div>
-
-                {/* 액션 버튼 */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                        <button
-                            onClick={resetLayout}
-                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            초기화
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                        >
-                            <Save className="w-4 h-4" />
-                            레이아웃 저장
-                        </button>
-                        <button
-                            onClick={handleGenerate}
-                            disabled={generating}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-                        >
-                            {generating ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    생성 중...
-                                </>
-                            ) : (
-                                <>
-                                    <Download className="w-4 h-4" />
-                                    썸네일 생성
-                                </>
-                            )}
-                        </button>
-                    </div>
-                    {/* 기본 템플릿 버튼 */}
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleLoadDefault}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors text-sm"
-                        >
-                            <Bookmark className="w-4 h-4" />
-                            기본 템플릿 불러오기
-                        </button>
-                        <button
-                            onClick={handleSaveAsDefault}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-green-300 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-sm"
-                        >
-                            <BookmarkCheck className="w-4 h-4" />
-                            기본 템플릿으로 저장
-                        </button>
-                    </div>
-                    {/* 다른 배경 선택 버튼 */}
-                    {onChangeBackground && (
-                        <button
-                            onClick={onChangeBackground}
-                            className="w-full py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-border rounded-lg hover:border-primary transition-colors"
-                        >
-                            다른 배경 이미지 선택
-                        </button>
-                    )}
-                </div>
-
-                {/* 영상 인트로/아웃트로 설정 */}
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                    {/* 영상 인트로 설정 */}
-                    <div className="p-4 bg-card border border-border rounded-xl space-y-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <PlayCircle className="w-4 h-4 text-primary" />
-                            영상 시작 인트로 설정
-                        </div>
-
-                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                            <input
-                                type="checkbox"
-                                checked={localIntroSettings.useAsIntro}
-                                onChange={(e) => updateIntroSettings({
-                                    useAsIntro: e.target.checked,
-                                    separateIntro: e.target.checked ? false : localIntroSettings.separateIntro
-                                })}
-                                className="w-4 h-4 mt-0.5 rounded accent-primary"
-                            />
-                            <div className="flex-1">
-                                <span className="text-sm font-medium text-foreground">
-                                    썸네일을 영상 시작 인트로로 사용
-                                </span>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    위에서 편집한 썸네일 이미지가 영상 시작 시 보여집니다
-                                </p>
-                            </div>
-                        </label>
-
-                        {localIntroSettings.useAsIntro && (
-                            <div className="ml-7 flex items-center gap-3">
-                                <Clock className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">인트로 길이:</span>
-                                <select
-                                    value={localIntroSettings.introDuration}
-                                    onChange={(e) => updateIntroSettings({ introDuration: parseInt(e.target.value) })}
-                                    className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
-                                >
-                                    {INTRO_DURATION_OPTIONS.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
+                        {/* 드래그 힌트 */}
+                        {!selectedBox && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-black/60 rounded-full text-white text-xs pointer-events-none">
+                                <Move className="w-3 h-3" />
+                                텍스트를 드래그하여 위치 조정
                             </div>
                         )}
+                    </div>
 
-                        <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-border"></div>
-                            </div>
-                            <div className="relative flex justify-center text-xs">
-                                <span className="px-2 bg-card text-muted-foreground">또는</span>
-                            </div>
+                    {/* 액션 버튼 */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={resetLayout}
+                                className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                초기화
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                            >
+                                <Save className="w-4 h-4" />
+                                레이아웃 저장
+                            </button>
+                            <button
+                                onClick={handleGenerate}
+                                disabled={generating}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                            >
+                                {generating ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        생성 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download className="w-4 h-4" />
+                                        썸네일 생성
+                                    </>
+                                )}
+                            </button>
                         </div>
+                        {/* 기본 템플릿 버튼 */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleLoadDefault}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors text-sm"
+                            >
+                                <Bookmark className="w-4 h-4" />
+                                기본 템플릿 불러오기
+                            </button>
+                            <button
+                                onClick={handleSaveAsDefault}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-green-300 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-sm"
+                            >
+                                <BookmarkCheck className="w-4 h-4" />
+                                기본 템플릿으로 저장
+                            </button>
+                        </div>
+                        {/* 다른 배경 선택 버튼 */}
+                        {onChangeBackground && (
+                            <button
+                                onClick={onChangeBackground}
+                                className="w-full py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-border rounded-lg hover:border-primary transition-colors"
+                            >
+                                다른 배경 이미지 선택
+                            </button>
+                        )}
+                    </div>
 
-                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                            <input
-                                type="checkbox"
-                                checked={localIntroSettings.separateIntro}
-                                onChange={(e) => updateIntroSettings({
-                                    separateIntro: e.target.checked,
-                                    useAsIntro: e.target.checked ? false : localIntroSettings.useAsIntro
-                                })}
-                                className="w-4 h-4 mt-0.5 rounded accent-primary"
-                            />
-                            <div className="flex-1">
-                                <span className="text-sm font-medium text-foreground">
-                                    별도 인트로 이미지 사용
-                                </span>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    썸네일과 다른 이미지를 영상 시작에 사용합니다 (추후 지원 예정)
-                                </p>
+                    {/* 영상 인트로/아웃트로 설정 */}
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                        {/* 영상 인트로 설정 */}
+                        <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <PlayCircle className="w-4 h-4 text-primary" />
+                                영상 시작 인트로 설정
                             </div>
-                        </label>
 
-                        {localIntroSettings.separateIntro && (
-                            <div className="ml-7 p-3 bg-muted/30 rounded-lg">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <ImageIcon className="w-4 h-4" />
-                                    별도 인트로 편집 기능은 추후 업데이트 예정입니다
+                            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={localIntroSettings.useAsIntro}
+                                    onChange={(e) => updateIntroSettings({
+                                        useAsIntro: e.target.checked,
+                                        separateIntro: e.target.checked ? false : localIntroSettings.separateIntro
+                                    })}
+                                    className="w-4 h-4 mt-0.5 rounded accent-primary"
+                                />
+                                <div className="flex-1">
+                                    <span className="text-sm font-medium text-foreground">
+                                        썸네일을 영상 시작 인트로로 사용
+                                    </span>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        위에서 편집한 썸네일 이미지가 영상 시작 시 보여집니다
+                                    </p>
                                 </div>
-                                <div className="mt-2 flex items-center gap-3">
+                            </label>
+
+                            {localIntroSettings.useAsIntro && (
+                                <div className="ml-7 flex items-center gap-3">
                                     <Clock className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-sm text-muted-foreground">인트로 길이:</span>
                                     <select
@@ -1044,245 +995,295 @@ const ThumbnailEditor = forwardRef<ThumbnailEditorRef, ThumbnailEditorProps>(fun
                                         ))}
                                     </select>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {!localIntroSettings.useAsIntro && !localIntroSettings.separateIntro && (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                                인트로 없이 바로 영상이 시작됩니다
-                            </p>
-                        )}
-                    </div>
-
-                    {/* 영상 아웃트로 설정 */}
-                    <div className="p-4 bg-card border border-border rounded-xl space-y-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <StopCircle className="w-4 h-4 text-primary" />
-                            영상 종료 아웃트로 설정
-                        </div>
-
-                        <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
-                            <input
-                                type="checkbox"
-                                checked={localIntroSettings.useAsOutro ?? true}
-                                onChange={(e) => updateIntroSettings({ useAsOutro: e.target.checked })}
-                                className="w-4 h-4 mt-0.5 rounded accent-primary"
-                            />
-                            <div className="flex-1">
-                                <span className="text-sm font-medium text-foreground">
-                                    배경 이미지를 영상 종료 아웃트로로 사용
-                                </span>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    썸네일 배경 이미지가 영상 끝에 페이드되며 보여집니다 (텍스트 없이 배경만)
-                                </p>
-                            </div>
-                        </label>
-
-                        {(localIntroSettings.useAsOutro ?? true) && (
-                            <div className="ml-7 flex items-center gap-3">
-                                <Clock className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">아웃트로 길이:</span>
-                                <select
-                                    value={localIntroSettings.outroDuration ?? 3}
-                                    onChange={(e) => updateIntroSettings({ outroDuration: parseInt(e.target.value) })}
-                                    className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
-                                >
-                                    {OUTRO_DURATION_OPTIONS.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        {!(localIntroSettings.useAsOutro ?? true) && (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                                아웃트로 없이 영상이 종료됩니다
-                            </p>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* 오른쪽: 편집 컨트롤 */}
-            <div className="flex-1 min-w-[320px] bg-card border border-border rounded-xl p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {/* 텍스트 박스 선택 탭 */}
-                <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">텍스트 선택</label>
-                    <div className="flex flex-wrap gap-2">
-                        {textBoxes.map((box) => (
-                            <button
-                                key={box.id}
-                                onClick={() => setSelectedBox(selectedBox === box.id ? null : box.id)}
-                                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${selectedBox === box.id
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-accent text-foreground hover:bg-accent/80'
-                                    }`}
-                            >
-                                {box.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 선택된 박스 설정 */}
-                {selectedBoxData ? (
-                    <div className="space-y-4 pt-4 border-t border-border">
-                        {/* 텍스트 입력 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                <Type className="inline w-4 h-4 mr-1" />
-                                텍스트
-                            </label>
-                            <input
-                                type="text"
-                                value={selectedBoxData.text}
-                                onChange={(e) => updateTextBox(selectedBoxData.id, { text: e.target.value })}
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-background"
-                            />
-                        </div>
-
-                        {/* 폰트 선택 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                폰트
-                            </label>
-
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {FONT_CATEGORIES.map(cat => (
-                                    <button
-                                        key={cat.id}
-                                        type="button"
-                                        onClick={() => setFontCategory(cat.id)}
-                                        className={`px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1 ${fontCategory === cat.id
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-accent text-foreground hover:bg-accent/80'
-                                            }`}
-                                    >
-                                        {cat.id === 'bookmarked' && <Star className="w-3 h-3" />}
-                                        {cat.label}
-                                    </button>
-                                ))}
+                            <div className="relative py-2">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-border"></div>
+                                </div>
+                                <div className="relative flex justify-center text-xs">
+                                    <span className="px-2 bg-card text-muted-foreground">또는</span>
+                                </div>
                             </div>
 
-                            <div className="max-h-56 overflow-y-auto border border-border rounded-lg p-2 space-y-1">
-                                {filteredFonts.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground text-center py-4">
-                                        {fontCategory === 'bookmarked' ? '즐겨찾기한 폰트가 없습니다' : '폰트가 없습니다'}
-                                    </p>
-                                ) : (
-                                    filteredFonts.map(font => (
-                                        <div
-                                            key={font.value}
-                                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedBoxData.fontFamily === font.value
-                                                ? 'bg-primary/20 border border-primary'
-                                                : 'hover:bg-accent border border-transparent'
-                                                }`}
-                                            onClick={() => updateTextBox(selectedBoxData.id, { fontFamily: font.value })}
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleBookmark(font.value);
-                                                }}
-                                                className="p-1 hover:bg-accent rounded"
-                                            >
-                                                {bookmarkedFonts.includes(font.value) ? (
-                                                    <BookmarkCheck className="w-4 h-4 text-primary" />
-                                                ) : (
-                                                    <Bookmark className="w-4 h-4 text-muted-foreground" />
-                                                )}
-                                            </button>
-
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-muted-foreground">{font.label}</p>
-                                                <p
-                                                    className="text-lg truncate"
-                                                    style={{ fontFamily: font.value }}
-                                                >
-                                                    {selectedBoxData.text || font.preview}
-                                                </p>
-                                            </div>
-
-                                            {selectedBoxData.fontFamily === font.value && (
-                                                <div className="w-2 h-2 rounded-full bg-primary" />
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        {/* 폰트 크기 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                크기: {selectedBoxData.fontSize}px
-                            </label>
-                            <input
-                                type="range"
-                                min="24"
-                                max="200"
-                                value={selectedBoxData.fontSize}
-                                onChange={(e) => updateTextBox(selectedBoxData.id, { fontSize: parseInt(e.target.value) })}
-                                className="w-full"
-                            />
-                        </div>
-
-                        {/* 색상 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">
-                                <Palette className="inline w-4 h-4 mr-1" />
-                                색상
-                            </label>
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                                {['#FFFFFF', '#000000', '#FF0000', '#FF6B00', '#FFD700', '#00FF00', '#00BFFF', '#0066FF', '#8B00FF', '#FF1493'].map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        onClick={() => updateTextBox(selectedBoxData.id, { color })}
-                                        className={`w-7 h-7 rounded-md border-2 transition-all ${selectedBoxData.color.toUpperCase() === color ? 'border-primary scale-110 ring-2 ring-primary/50' : 'border-border hover:scale-105'}`}
-                                        style={{ backgroundColor: color }}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <input
-                                    type="color"
-                                    value={selectedBoxData.color}
-                                    onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
-                                    className="w-16 h-10 rounded cursor-pointer border border-border"
-                                />
-                                <input
-                                    type="text"
-                                    value={selectedBoxData.color}
-                                    onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
-                                    placeholder="#FFFFFF"
-                                    className="w-24 px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                                />
-                            </div>
-                        </div>
-
-                        {/* 표시 여부 */}
-                        <div className="flex items-center pt-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
                                 <input
                                     type="checkbox"
-                                    checked={selectedBoxData.visible}
-                                    onChange={(e) => updateTextBox(selectedBoxData.id, { visible: e.target.checked })}
-                                    className="w-4 h-4 rounded"
+                                    checked={localIntroSettings.separateIntro}
+                                    onChange={(e) => updateIntroSettings({
+                                        separateIntro: e.target.checked,
+                                        useAsIntro: e.target.checked ? false : localIntroSettings.useAsIntro
+                                    })}
+                                    className="w-4 h-4 mt-0.5 rounded accent-primary"
                                 />
-                                <span className="text-sm text-foreground">텍스트 표시</span>
+                                <div className="flex-1">
+                                    <span className="text-sm font-medium text-foreground">
+                                        별도 인트로 이미지 사용
+                                    </span>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        썸네일과 다른 이미지를 영상 시작에 사용합니다 (추후 지원 예정)
+                                    </p>
+                                </div>
                             </label>
+
+                            {localIntroSettings.separateIntro && (
+                                <div className="ml-7 p-3 bg-muted/30 rounded-lg">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <ImageIcon className="w-4 h-4" />
+                                        별도 인트로 편집 기능은 추후 업데이트 예정입니다
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-3">
+                                        <Clock className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm text-muted-foreground">인트로 길이:</span>
+                                        <select
+                                            value={localIntroSettings.introDuration}
+                                            onChange={(e) => updateIntroSettings({ introDuration: parseInt(e.target.value) })}
+                                            className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
+                                        >
+                                            {INTRO_DURATION_OPTIONS.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!localIntroSettings.useAsIntro && !localIntroSettings.separateIntro && (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                    인트로 없이 바로 영상이 시작됩니다
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 영상 아웃트로 설정 */}
+                        <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <StopCircle className="w-4 h-4 text-primary" />
+                                영상 종료 아웃트로 설정
+                            </div>
+
+                            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={localIntroSettings.useAsOutro ?? true}
+                                    onChange={(e) => updateIntroSettings({ useAsOutro: e.target.checked })}
+                                    className="w-4 h-4 mt-0.5 rounded accent-primary"
+                                />
+                                <div className="flex-1">
+                                    <span className="text-sm font-medium text-foreground">
+                                        배경 이미지를 영상 종료 아웃트로로 사용
+                                    </span>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        썸네일 배경 이미지가 영상 끝에 페이드되며 보여집니다 (텍스트 없이 배경만)
+                                    </p>
+                                </div>
+                            </label>
+
+                            {(localIntroSettings.useAsOutro ?? true) && (
+                                <div className="ml-7 flex items-center gap-3">
+                                    <Clock className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">아웃트로 길이:</span>
+                                    <select
+                                        value={localIntroSettings.outroDuration ?? 3}
+                                        onChange={(e) => updateIntroSettings({ outroDuration: parseInt(e.target.value) })}
+                                        className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background"
+                                    >
+                                        {OUTRO_DURATION_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {!(localIntroSettings.useAsOutro ?? true) && (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                    아웃트로 없이 영상이 종료됩니다
+                                </p>
+                            )}
                         </div>
                     </div>
-                ) : (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                        위에서 텍스트를 선택하세요
+                </div>
+
+                {/* 오른쪽: 편집 컨트롤 */}
+                <div className="flex-1 min-w-[320px] bg-card border border-border rounded-xl p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    {/* 텍스트 박스 선택 탭 */}
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">텍스트 선택</label>
+                        <div className="flex flex-wrap gap-2">
+                            {textBoxes.map((box) => (
+                                <button
+                                    key={box.id}
+                                    onClick={() => setSelectedBox(selectedBox === box.id ? null : box.id)}
+                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${selectedBox === box.id
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-accent text-foreground hover:bg-accent/80'
+                                        }`}
+                                >
+                                    {box.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                )}
+
+                    {/* 선택된 박스 설정 */}
+                    {selectedBoxData ? (
+                        <div className="space-y-4 pt-4 border-t border-border">
+                            {/* 텍스트 입력 */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">
+                                    <Type className="inline w-4 h-4 mr-1" />
+                                    텍스트
+                                </label>
+                                <input
+                                    type="text"
+                                    value={selectedBoxData.text}
+                                    onChange={(e) => updateTextBox(selectedBoxData.id, { text: e.target.value })}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                />
+                            </div>
+
+                            {/* 폰트 선택 */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">
+                                    폰트
+                                </label>
+
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                    {FONT_CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setFontCategory(cat.id)}
+                                            className={`px-2 py-1 text-xs rounded-md transition-colors flex items-center gap-1 ${fontCategory === cat.id
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-accent text-foreground hover:bg-accent/80'
+                                                }`}
+                                        >
+                                            {cat.id === 'bookmarked' && <Star className="w-3 h-3" />}
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="max-h-56 overflow-y-auto border border-border rounded-lg p-2 space-y-1">
+                                    {filteredFonts.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4">
+                                            {fontCategory === 'bookmarked' ? '즐겨찾기한 폰트가 없습니다' : '폰트가 없습니다'}
+                                        </p>
+                                    ) : (
+                                        filteredFonts.map(font => (
+                                            <div
+                                                key={font.value}
+                                                className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedBoxData.fontFamily === font.value
+                                                    ? 'bg-primary/20 border border-primary'
+                                                    : 'hover:bg-accent border border-transparent'
+                                                    }`}
+                                                onClick={() => updateTextBox(selectedBoxData.id, { fontFamily: font.value })}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleBookmark(font.value);
+                                                    }}
+                                                    className="p-1 hover:bg-accent rounded"
+                                                >
+                                                    {bookmarkedFonts.includes(font.value) ? (
+                                                        <BookmarkCheck className="w-4 h-4 text-primary" />
+                                                    ) : (
+                                                        <Bookmark className="w-4 h-4 text-muted-foreground" />
+                                                    )}
+                                                </button>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs text-muted-foreground">{font.label}</p>
+                                                    <p
+                                                        className="text-lg truncate"
+                                                        style={{ fontFamily: font.value }}
+                                                    >
+                                                        {selectedBoxData.text || font.preview}
+                                                    </p>
+                                                </div>
+
+                                                {selectedBoxData.fontFamily === font.value && (
+                                                    <div className="w-2 h-2 rounded-full bg-primary" />
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 폰트 크기 */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">
+                                    크기: {selectedBoxData.fontSize}px
+                                </label>
+                                <input
+                                    type="range"
+                                    min="24"
+                                    max="200"
+                                    value={selectedBoxData.fontSize}
+                                    onChange={(e) => updateTextBox(selectedBoxData.id, { fontSize: parseInt(e.target.value) })}
+                                    className="w-full"
+                                />
+                            </div>
+
+                            {/* 색상 */}
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">
+                                    <Palette className="inline w-4 h-4 mr-1" />
+                                    색상
+                                </label>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {['#FFFFFF', '#000000', '#FF0000', '#FF6B00', '#FFD700', '#00FF00', '#00BFFF', '#0066FF', '#8B00FF', '#FF1493'].map((color) => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            onClick={() => updateTextBox(selectedBoxData.id, { color })}
+                                            className={`w-7 h-7 rounded-md border-2 transition-all ${selectedBoxData.color.toUpperCase() === color ? 'border-primary scale-110 ring-2 ring-primary/50' : 'border-border hover:scale-105'}`}
+                                            style={{ backgroundColor: color }}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="color"
+                                        value={selectedBoxData.color}
+                                        onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
+                                        className="w-16 h-10 rounded cursor-pointer border border-border"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={selectedBoxData.color}
+                                        onChange={(e) => updateTextBox(selectedBoxData.id, { color: e.target.value })}
+                                        placeholder="#FFFFFF"
+                                        className="w-24 px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 표시 여부 */}
+                            <div className="flex items-center pt-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedBoxData.visible}
+                                        onChange={(e) => updateTextBox(selectedBoxData.id, { visible: e.target.checked })}
+                                        className="w-4 h-4 rounded"
+                                    />
+                                    <span className="text-sm text-foreground">텍스트 표시</span>
+                                </label>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center py-12 text-muted-foreground">
+                            위에서 텍스트를 선택하세요
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
         </>
     );
 });

@@ -30,7 +30,9 @@ import {
   getThumbnailLayout,
   regenerateVideo,
   saveCanvasThumbnail,
+  // API_URL will be used directly
 } from "@/lib/api";
+import { API_URL } from "@/lib/api-config";
 import ThumbnailConceptPicker from "./ThumbnailConceptPicker";
 import ThumbnailEditor, { type IntroSettings, type ThumbnailEditorRef } from "./ThumbnailEditor";
 interface VideoEditModalProps {
@@ -680,7 +682,7 @@ export default function VideoEditModal({
                       <video
                         key={`${video.id}-${video.completed_at}`}
                         ref={videoRef}
-                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/videos/${video.id}/stream?v=${new Date(video.completed_at || video.created_at).getTime()}`}
+                        src={`${API_URL}/api/videos/${video.id}/stream?v=${new Date(video.completed_at || video.created_at).getTime()}`}
                         className="w-full h-full object-contain"
                         playsInline
                         preload="auto"

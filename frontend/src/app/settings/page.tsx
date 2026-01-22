@@ -25,8 +25,8 @@ import {
   clearReplacementDictionary,
   type ReplacementEntry,
 } from "@/lib/api";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { API_URL } from "@/lib/api-config";
+// const API_URL ... removed
 
 interface Church {
   id: string;
@@ -287,11 +287,10 @@ export default function SettingsPage() {
             {/* 메시지 */}
             {message && (
               <div
-                className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-                  message.type === "success"
-                    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                    : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
-                }`}
+                className={`flex items-center gap-2 p-3 rounded-lg text-sm ${message.type === "success"
+                  ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                  : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                  }`}
               >
                 {message.type === "success" ? (
                   <CheckCircle className="w-4 h-4" />
@@ -344,22 +343,20 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setUseCustomChurch(false)}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                    !useCustomChurch
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-gray-100 dark:bg-gray-800 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${!useCustomChurch
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-gray-100 dark:bg-gray-800 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
                 >
                   목록에서 선택
                 </button>
                 <button
                   type="button"
                   onClick={() => setUseCustomChurch(true)}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                    useCustomChurch
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-gray-100 dark:bg-gray-800 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${useCustomChurch
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-gray-100 dark:bg-gray-800 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
                 >
                   직접 입력
                 </button>
@@ -503,11 +500,10 @@ export default function SettingsPage() {
             {/* 메시지 */}
             {passwordMessage && (
               <div
-                className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-                  passwordMessage.type === "success"
-                    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                    : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
-                }`}
+                className={`flex items-center gap-2 p-3 rounded-lg text-sm ${passwordMessage.type === "success"
+                  ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                  : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                  }`}
               >
                 {passwordMessage.type === "success" ? (
                   <CheckCircle className="w-4 h-4" />

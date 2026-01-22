@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import PaymentButton from "@/components/PaymentButton";
 import TestPaymentButton from "@/components/TestPaymentButton";
 import UsageBar from "@/components/UsageBar";
+import { API_URL } from "@/lib/api-config";
 
 interface SubscriptionInfo {
     tier: "free" | "basic" | "premium";
@@ -56,11 +57,13 @@ export default function SubscriptionPage() {
                 Authorization: `Bearer ${token}`,
             };
 
+            const apiUrl = API_URL;
+
             // 병렬로 데이터 fetch
             const [subRes, usageRes, paymentRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscription/status?church_id=${user?.church_id}`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscription/usage?church_id=${user?.church_id}`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscription/payments?church_id=${user?.church_id}`, { headers }),
+                fetch(`${apiUrl}/api/subscription/status?church_id=${user?.church_id}`, { headers }),
+                fetch(`${apiUrl}/api/subscription/usage?church_id=${user?.church_id}`, { headers }),
+                fetch(`${apiUrl}/api/subscription/payments?church_id=${user?.church_id}`, { headers }),
             ]);
 
             if (subRes.ok) {
@@ -100,7 +103,9 @@ export default function SubscriptionPage() {
 
         try {
             const token = localStorage.getItem("access_token");
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/subscription/cancel`, {
+            const apiUrl = API_URL;
+
+            const res = await fetch(`${apiUrl}/api/subscription/cancel`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -144,8 +149,8 @@ export default function SubscriptionPage() {
                 {message && (
                     <div
                         className={`mb-6 p-4 rounded-lg ${message.type === "success"
-                                ? "bg-green-500/20 border border-green-500 text-green-400"
-                                : "bg-red-500/20 border border-red-500 text-red-400"
+                            ? "bg-green-500/20 border border-green-500 text-green-400"
+                            : "bg-red-500/20 border border-red-500 text-red-400"
                             }`}
                     >
                         {message.text}
@@ -160,8 +165,8 @@ export default function SubscriptionPage() {
                             <div className="flex items-center gap-3">
                                 <span
                                     className={`px-4 py-2 rounded-full text-sm font-bold ${isPremium
-                                            ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                                            : "bg-gray-700 text-gray-300"
+                                        ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
+                                        : "bg-gray-700 text-gray-300"
                                         }`}
                                 >
                                     {isPremium ? "⭐ 프리미엄" : "무료"}
@@ -296,10 +301,10 @@ export default function SubscriptionPage() {
                                     </div>
                                     <span
                                         className={`px-3 py-1 rounded-full text-xs ${payment.status === "paid"
-                                                ? "bg-green-500/20 text-green-400"
-                                                : payment.status === "failed"
-                                                    ? "bg-red-500/20 text-red-400"
-                                                    : "bg-gray-500/20 text-gray-400"
+                                            ? "bg-green-500/20 text-green-400"
+                                            : payment.status === "failed"
+                                                ? "bg-red-500/20 text-red-400"
+                                                : "bg-gray-500/20 text-gray-400"
                                             }`}
                                     >
                                         {payment.status === "paid"

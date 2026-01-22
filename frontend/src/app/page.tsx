@@ -29,6 +29,7 @@ import { createVideoWithOptions, getTaskStatus, getVideos, deleteVideo, getStats
 import { useAuth } from "@/contexts/AuthContext";
 import UsageBar from "@/components/UsageBar";
 import type { UploadFile, VideoItem, VideoOptions, ResourceTemplate } from "@/types";
+import { API_URL } from "@/lib/api-config";
 
 const TEMPLATE_STORAGE_KEY = "qt_resource_templates";
 
@@ -758,7 +759,7 @@ export default function Home() {
                         <div className="flex items-center justify-end gap-2">
                           {video.video_file_path && (
                             <a
-                              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/${video.id}/download?file_type=video`}
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=video`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
                             >
                               <Download className="w-4 h-4" />
@@ -767,7 +768,7 @@ export default function Home() {
                           )}
                           {video.srt_file_path && (
                             <a
-                              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/${video.id}/download?file_type=srt`}
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=srt`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-accent transition-colors"
                             >
                               <Download className="w-4 h-4" />

@@ -17,6 +17,7 @@ import { DashboardLayout, VideoEditModal } from "@/components";
 import { getVideos, deleteVideo } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { VideoItem } from "@/types";
+import { API_URL } from "@/lib/api-config";
 
 export default function VideosPage() {
   const router = useRouter();
@@ -113,7 +114,8 @@ export default function VideosPage() {
     setIsDeleting(true);
     try {
       // API 호출
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/delete-batch`, {
+      const apiUrl = API_URL;
+      const response = await fetch(`${apiUrl}/api/videos/delete-batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -288,23 +290,22 @@ export default function VideosPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                            video.status === "completed" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${video.status === "completed" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
                             video.status === "processing" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
-                            video.status === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 cursor-pointer" :
-                            "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                          }`}
+                              video.status === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 cursor-pointer" :
+                                "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                            }`}
                           title={video.status === "failed" && video.error_message ? `실패 원인: ${video.error_message}` : undefined}
                           onClick={video.status === "failed" && video.error_message ? () => {
                             alert(`영상 생성 실패\n\n원인: ${video.error_message}\n\n문제가 지속되면 관리자에게 문의해주세요.`);
                           } : undefined}
                         >
                           {video.status === "completed" ? <CheckCircle className="w-3 h-3" /> :
-                           video.status === "processing" ? <Clock className="w-3 h-3" /> :
-                           video.status === "failed" ? <AlertCircle className="w-3 h-3" /> : null}
+                            video.status === "processing" ? <Clock className="w-3 h-3" /> :
+                              video.status === "failed" ? <AlertCircle className="w-3 h-3" /> : null}
                           {video.status === "completed" ? "완료" :
-                           video.status === "processing" ? "처리중" :
-                           video.status === "failed" ? "실패 (클릭)" : "대기중"}
+                            video.status === "processing" ? "처리중" :
+                              video.status === "failed" ? "실패 (클릭)" : "대기중"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -339,7 +340,7 @@ export default function VideosPage() {
                         <div className="flex items-center justify-end gap-2">
                           {video.video_file_path && (
                             <a
-                              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/${video.id}/download?file_type=video`}
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=video`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
                             >
                               <Download className="w-4 h-4" />
@@ -348,7 +349,7 @@ export default function VideosPage() {
                           )}
                           {video.srt_file_path && (
                             <a
-                              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/videos/${video.id}/download?file_type=srt`}
+                              href={`${API_URL}/api/videos/${video.id}/download?file_type=srt`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border text-foreground text-sm font-medium rounded-lg hover:bg-accent transition-colors"
                             >
                               <Download className="w-4 h-4" />

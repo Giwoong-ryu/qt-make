@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { API_URL } from "@/lib/api-config";
 
 function CallbackContent() {
   const router = useRouter();
@@ -10,7 +11,6 @@ function CallbackContent() {
   const { refreshUser } = useAuth();
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
   const [message, setMessage] = useState("결제 정보를 처리 중입니다...");
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     const processCallback = async () => {

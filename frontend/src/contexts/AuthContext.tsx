@@ -40,7 +40,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { API_URL } from "@/lib/api-config";
+
+console.log("[AuthContext] NODE_ENV:", process.env.NODE_ENV);
+console.log("[AuthContext] API_URL:", API_URL);
 
 // 토큰 저장/로드 (다른 컴포넌트에서도 사용 가능하도록 export)
 export const TOKEN_KEY = "qt_access_token";
