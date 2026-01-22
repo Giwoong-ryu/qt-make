@@ -357,8 +357,17 @@ class AuthService:
             "Password should be at least 6 characters": "비밀번호는 6자 이상이어야 합니다.",
             "Unable to validate email address": "유효하지 않은 이메일 형식입니다.",
             "Email not confirmed": "이메일 인증이 필요합니다. 메일함을 확인해주세요.",
+            "User not found": "등록되지 않은 이메일입니다.",
+            "Signup requires a valid password": "유효한 비밀번호를 입력해주세요.",
+            "Email rate limit exceeded": "너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.",
         }
-        return error_map.get(message, message)
+        
+        # 부분 매칭 (contains)
+        for key, value in error_map.items():
+            if key.lower() in message.lower():
+                return value
+        
+        return message
 
 
 # 싱글톤
