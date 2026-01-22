@@ -318,7 +318,11 @@ def process_video_task(
             )
 
             from app.services.visual_description_generator import VisualDescriptionGenerator
-            desc_generator = VisualDescriptionGenerator()
+            # generation_mode에 따라 인물 포함 여부 결정
+            # "default" (biblical) = 인물 포함 가능
+            # "natural" = 자연만
+            allow_people = (generation_mode == "default")
+            desc_generator = VisualDescriptionGenerator(allow_people=allow_people)
 
             visual_descriptions = []
             for cut in cuts:

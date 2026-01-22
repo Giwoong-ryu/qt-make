@@ -536,8 +536,8 @@ export default function Home() {
                       }}
                       className="w-full appearance-none pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      <option value="natural">자연 생성 (권장)</option>
-                      <option value="default">기본 설정</option>
+                      <option value="natural">자연 배경 (기본)</option>
+                      <option value="default">인물 포함 (Biblical)</option>
                       {templates.length > 0 && <option disabled>─────────────</option>}
                       {templates.map((template) => (
                         <option key={template.id} value={template.id}>

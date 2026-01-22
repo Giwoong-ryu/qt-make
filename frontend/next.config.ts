@@ -12,12 +12,7 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // 환경변수 검증
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_PORTONE_STORE_ID: process.env.NEXT_PUBLIC_PORTONE_STORE_ID,
-    NEXT_PUBLIC_PORTONE_CHANNEL_KEY: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY,
-  },
+
 };
 
 export default nextConfig;
