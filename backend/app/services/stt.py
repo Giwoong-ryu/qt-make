@@ -18,15 +18,15 @@ class WhisperService:
     # 자막 길이 설정 프리셋
     # 2026-01-23 개선: short 모드 값 상향 - 너무 짧게 끊겨서 연결어미/조사에서 분리되는 문제 해결
     SUBTITLE_PRESETS = {
-        "short": {  # QT 영상 최적화 (기본값) - 맥락 유지 위해 길이 대폭 상향
-            "max_chars_per_line": 20,      # 14→20: 한 줄에 넉넉하게
-            "max_chars_per_subtitle": 40,  # 28→40: 전체 문맥 담기 충분하게
-            "max_duration": 4.0,           # 시간 제한 추가
+        "short": {  # QT 영상 최적화 (기본값) - 매우 짧은 호흡
+            "max_chars_per_line": 12,      # 한 줄 12자 내외
+            "max_chars_per_subtitle": 22,  # 전체 22자 제한
+            "max_duration": 3.0,
         },
-        "long": {  # 긴 호흡
-            "max_chars_per_line": 25,      # 16→25
-            "max_chars_per_subtitle": 50,  # 32→50
-            "max_duration": 6.0,
+        "long": {  # 일반 호흡
+            "max_chars_per_line": 16,
+            "max_chars_per_subtitle": 32,
+            "max_duration": 4.5,
         }
     }
 
