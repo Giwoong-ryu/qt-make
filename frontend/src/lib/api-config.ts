@@ -8,12 +8,7 @@ export const getApiUrl = () => {
             return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         }
 
-        // 프로덕션 도메인 (www 포함)
-        if (hostname.includes("qt-make.com")) {
-            return "https://qt-make-production.up.railway.app";
-        }
-
-        // 그 외 모든 환경 (Vercel 프리뷰 등) -> Railway 프로덕션
+        // 그 외 모든 환경 (프로덕션, 프리뷰 등) -> 무조건 Railway 프로덕션 백엔드
         return "https://qt-make-production.up.railway.app";
     }
 
