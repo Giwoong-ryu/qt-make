@@ -278,12 +278,13 @@ class WhisperService:
 
         병합 조건:
         1. 현재 자막이 조사로 끝남 (문장 불완전)
-        2. 현재 자막이 너무 짧음 (3글자 이하)
-        3. 병합 후에도 최대 길이/시간 초과하지 않음
+        2. 현재 자막이 너무 짧음 (5글자 이하)
+        3. 연결어미로 끝남 (문장이 이어짐)
+        4. 다음 자막이 동사 어미로 시작 (이전 문장에 붙어야 함) ← NEW
 
         예시:
         - "오늘 우리가" + "예배드립니다" → "오늘 우리가 예배드립니다"
-        - "씨보다 작은 것이로" + "돼 심긴 후에는" → "씨보다 작은 것이로 돼 심긴 후에는"
+        - "주무시고" + "계셨어요" → "주무시고 계셨어요" ← NEW
         """
         if not subtitles or len(subtitles) < 2:
             return subtitles
@@ -303,6 +304,12 @@ class WhisperService:
             current_text = current['text'].strip()
             words = current_text.split()
             last_word = words[-1] if words else ""
+            
+            # 다음 자막 분석
+            next_sub = subtitles[i + 1]
+            next_text = next_sub['text'].strip()
+            next_words = next_text.split()
+            next_first_word = next_words[0] if next_words else ""
 
             # 병합 필요 여부 판단
             should_merge = False
@@ -322,10 +329,26 @@ class WhisperService:
                 if current_text.endswith(connecting):
                     should_merge = True
                     break
+            
+            # 조건 4: 다음 자막이 동사 어미로 시작 (이전 문장에 붙어야 함)
+            # 예: "계셨어요", "됐어요", "있습니다", "했습니다"
+            if not should_merge and next_first_word:
+                # 동사 어미로만 이루어진 짧은 단어들 (3글자 이하면서 종결어미)
+                for ending in self.KOREAN_SENTENCE_ENDINGS:
+                    if next_first_word.endswith(ending) and len(next_first_word) <= len(ending) + 2:
+                        # 다음 자막의 첫 단어가 동사 어미 형태면 이전에 붙어야 함
+                        should_merge = True
+                        logger.debug(f"[Merge] Next starts with verb ending: '{next_first_word}'")
+                        break
+                
+                # 추가: 다음이 "있", "없", "됐", "했" 등으로 시작하면 이전에 붙어야 함
+                verb_starters = ("있", "없", "됐", "했", "갔", "왔", "봤", "계셨", "하셨", "주셨")
+                if next_first_word.startswith(verb_starters):
+                    should_merge = True
+                    logger.debug(f"[Merge] Next starts with verb: '{next_first_word}'")
 
             if should_merge:
-                next_sub = subtitles[i + 1]
-                merged_text = current_text + " " + next_sub['text'].strip()
+                merged_text = current_text + " " + next_text
                 merged_duration = next_sub['end'] - current['start']
 
                 # 병합 가능 조건: 길이/시간 초과 안 함
