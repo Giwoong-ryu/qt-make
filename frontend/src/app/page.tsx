@@ -384,7 +384,7 @@ export default function Home() {
     setSelectedClips([]);
     setSelectedBGM(null);
     setBgmVolume(0.12);
-    setGenerationMode("natural");
+    setGenerationMode("safe");
     setSubtitleLength("short");
     setSelectedTemplateId(null);
     setIsUploading(false);
