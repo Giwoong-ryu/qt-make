@@ -30,6 +30,59 @@ class PexelsVideo:
     file_path: str  # 다운로드 URL
     quality_score: int = 0
     vision_verified: bool = False
+    vision_score: Optional['VisionScore'] = None  # v1.5: 상세 점수
+
+
+@dataclass
+class VisionScore:
+    """
+    Gemini Vision 점수화 결과 (v1.5)
+    
+    기존 accept/reject 이진 판단에서 0-100 점수화로 개선
+    """
+    # Hard Reject 기준 (하나라도 True면 즉시 탈락)
+    has_face_closeup: bool = False
+    has_cityscape: bool = False
+    has_logo_text: bool = False
+    has_modern_objects: bool = False
+    has_revealing_content: bool = False
+    
+    # Soft Scores (0-100, 높을수록 좋음)
+    semantic_match: int = 50      # 자막 매칭 점수
+    biblical_vibe: int = 50       # 성경 분위기 점수
+    visual_quality: int = 50      # 시각 품질 점수
+    
+    # Modernness (0-100, 낮을수록 좋음 - 성경 시대에 가까움)
+    modernness: int = 50
+    
+    # 최종 판정
+    hard_reject: bool = False
+    final_score: int = 0
+    reject_reason: str = ""
+    scene_tags: List[str] = None
+    mood_tags: List[str] = None
+    
+    def __post_init__(self):
+        if self.scene_tags is None:
+            self.scene_tags = []
+        if self.mood_tags is None:
+            self.mood_tags = []
+        
+        # Hard Reject 계산
+        if any([self.has_face_closeup, self.has_cityscape, 
+                self.has_logo_text, self.has_modern_objects,
+                self.has_revealing_content]):
+            self.hard_reject = True
+            self.final_score = 0
+        else:
+            # Soft Score 계산: semantic(40%) + biblical(30%) + quality(20%) - modernness(10%)
+            self.final_score = int(
+                self.semantic_match * 0.4 +
+                self.biblical_vibe * 0.3 +
+                self.visual_quality * 0.2 -
+                self.modernness * 0.1
+            )
+            self.final_score = max(0, min(100, self.final_score))
 
 
 class PexelsVideoSearch:
@@ -47,15 +100,17 @@ class PexelsVideoSearch:
     # 전략별 검색 키워드 (빈도 기반 감정 분석 결과 연동)
     # Best Practice: Pexels는 구체적 키워드일수록 정확 (broad keywords = 부정확)
     # Reference: https://www.pexels.com/api/documentation/
+    # v1.5: symbolic 모드 추가, 네거티브 키워드 강화 (2026-01-22)
     STRATEGY_KEYWORDS = {
         "human": {
             "primary": [
                 "silhouette sunset back view walking",      # "person" 제거 (얼굴 클로즈업 방지)
                 "hooded figure shadow dark moody",          # 구체적 시각 요소 강조
-                "back view kneeling prayer church",         # 뒷모습 명시
+                "back view kneeling prayer",                # 뒷모습 명시 (church 제거)
                 "praying hands blur contemplation"          # 신체 부위만 (얼굴 제외)
             ],
-            "fallback": "silhouette shadow back view"       # "person" 완전 제거
+            "fallback": "silhouette shadow back view",
+            "negative": ["city", "stage", "concert", "microphone", "audience", "office"]
         },
         "nature_bright": {
             "primary": [
@@ -64,7 +119,8 @@ class PexelsVideoSearch:
                 "morning sunlight forest fog ethereal",     # 분위기 키워드 추가
                 "golden rays sunset landscape peaceful"     # 복합 감정 표현
             ],
-            "fallback": "sunrise golden light nature"       # 핵심만 남김
+            "fallback": "sunrise golden light nature",
+            "negative": ["city", "building", "car", "highway", "road", "vehicle"]
         },
         "nature_calm": {
             "primary": [
@@ -73,9 +129,24 @@ class PexelsVideoSearch:
                 "serene forest trees soft focus tranquil",  # 부드러운 시각 강조
                 "gentle ocean waves zen meditation"         # 명상 컨텍스트 명시
             ],
-            "fallback": "calm nature minimal peaceful"      # 미니멀 키워드 추가
+            "fallback": "calm nature minimal peaceful",
+            "negative": ["city", "building", "car", "highway", "road", "people"]
+        },
+        # NEW: symbolic 모드 - 기도손, 성경책, 십자가 실루엣 (v1.5)
+        "symbolic": {
+            "primary": [
+                "praying hands closeup candlelight warm",   # 기도 손 클로즈업
+                "open bible soft light wooden table",       # 성경책
+                "cross silhouette sunrise hope",            # 십자가 실루엣
+                "worship hands raised silhouette sunset"    # 찬양 손
+            ],
+            "fallback": "prayer hands bible cross candle",
+            "negative": ["city", "office", "stage", "concert", "logo", "fashion", "model"]
         }
     }
+    
+    # 공통 네거티브 키워드 (모든 모드에 적용) - "christian" 제거됨
+    GLOBAL_NEGATIVE = ["logo", "text", "watermark", "brand", "smartphone", "laptop"]
 
     def __init__(self, pexels_api_key: Optional[str] = None, gemini_api_key: Optional[str] = None):
         """
@@ -581,6 +652,164 @@ Output:"""
             logger.exception(f"Gemini Vision failed: {e}")
             # 폴백: 실패 시 안전하다고 가정 (False Positive보다 False Negative 선호)
             return True
+
+    def _score_with_gemini_vision(self, thumbnail_url: str, strategy: str = None) -> VisionScore:
+        """
+        Gemini Vision으로 썸네일 점수화 검증 (v1.5)
+        
+        기존 accept/reject 이진 판단에서 상세 점수화로 개선
+        
+        Args:
+            thumbnail_url: 영상 썸네일 URL
+            strategy: 현재 검색 전략 (semantic_match 계산용)
+            
+        Returns:
+            VisionScore 객체
+        """
+        try:
+            # 이미지 다운로드
+            response = requests.get(thumbnail_url, timeout=10)
+            if response.status_code != 200:
+                logger.warning(f"Failed to download thumbnail: {thumbnail_url}")
+                return VisionScore(hard_reject=True, reject_reason="download_failed")
+            
+            # v1.5 점수화 프롬프트 (JSON 출력)
+            prompt = """<task>
+Analyze this video thumbnail for Christian meditation/prayer content.
+Output a JSON object with the following structure (no markdown, just raw JSON):
+</task>
+
+<output_schema>
+{
+  "has_face_closeup": boolean,
+  "has_cityscape": boolean,
+  "has_logo_text": boolean,
+  "has_modern_objects": boolean,
+  "has_revealing_content": boolean,
+  "scene_tags": ["tag1", "tag2"],
+  "mood_tags": ["tag1", "tag2"],
+  "biblical_vibe": 0-100,
+  "visual_quality": 0-100,
+  "modernness": 0-100,
+  "reject_reason": "string or empty"
+}
+</output_schema>
+
+<scoring_guide>
+- has_face_closeup: true if ANY human face is clearly visible (eyes, nose, mouth)
+- has_cityscape: true if city buildings, skyscrapers, urban scenes present
+- has_logo_text: true if brand logos, watermarks, or prominent text visible
+- has_modern_objects: true if cars, smartphones, laptops, modern furniture present
+- has_revealing_content: true if revealing clothing, suggestive poses present
+- scene_tags: describe what's in the image (e.g., "desert", "sunset", "hands", "cross")
+- mood_tags: describe the feeling (e.g., "peaceful", "solemn", "hopeful")
+- biblical_vibe: 0-100, how much it feels like biblical/spiritual content
+- visual_quality: 0-100, image clarity, composition, aesthetic appeal
+- modernness: 0-100, how modern/contemporary it looks (lower = more timeless/biblical)
+- reject_reason: brief reason if any hard reject criteria met, empty otherwise
+</scoring_guide>
+
+<acceptable_content>
+- Nature landscapes (mountains, deserts, oceans, forests)
+- Silhouettes (complete black shadow, no face visible)
+- Back views (person facing away from camera)
+- Praying hands (no face)
+- Religious symbols (cross, bible, candles)
+- Biblical animals (sheep, doves, eagles in distance)
+</acceptable_content>
+
+Output ONLY the JSON object:"""
+
+            # Gemini Vision 호출
+            result = self.vision_model.generate_content(
+                [
+                    {
+                        "mime_type": "image/jpeg",
+                        "data": response.content
+                    },
+                    prompt
+                ]
+            )
+            
+            # JSON 파싱
+            import json
+            import re
+            
+            response_text = result.text.strip()
+            # Remove markdown code blocks if present
+            response_text = re.sub(r'^```json\s*', '', response_text)
+            response_text = re.sub(r'\s*```$', '', response_text)
+            
+            try:
+                data = json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse Vision JSON: {response_text[:100]}")
+                # 폴백: 기존 accept/reject 로직 사용
+                is_accept = "ACCEPT" in response_text.upper()
+                return VisionScore(
+                    hard_reject=not is_accept,
+                    reject_reason="json_parse_failed" if not is_accept else ""
+                )
+            
+            # VisionScore 생성
+            score = VisionScore(
+                has_face_closeup=data.get("has_face_closeup", False),
+                has_cityscape=data.get("has_cityscape", False),
+                has_logo_text=data.get("has_logo_text", False),
+                has_modern_objects=data.get("has_modern_objects", False),
+                has_revealing_content=data.get("has_revealing_content", False),
+                scene_tags=data.get("scene_tags", []),
+                mood_tags=data.get("mood_tags", []),
+                semantic_match=self._calculate_semantic_match(data.get("scene_tags", []), strategy),
+                biblical_vibe=data.get("biblical_vibe", 50),
+                visual_quality=data.get("visual_quality", 50),
+                modernness=data.get("modernness", 50),
+                reject_reason=data.get("reject_reason", "")
+            )
+            
+            logger.info(
+                f"[Vision Score] {thumbnail_url[-20:]} → "
+                f"{'❌ REJECT' if score.hard_reject else f'✅ {score.final_score}점'} "
+                f"(biblical={score.biblical_vibe}, modern={score.modernness})"
+            )
+            
+            return score
+            
+        except Exception as e:
+            logger.exception(f"Gemini Vision scoring failed: {e}")
+            return VisionScore(hard_reject=False, semantic_match=50, biblical_vibe=50)
+    
+    def _calculate_semantic_match(self, scene_tags: List[str], strategy: str) -> int:
+        """
+        scene_tags와 전략의 매칭 점수 계산
+        
+        Args:
+            scene_tags: Gemini Vision이 감지한 장면 태그
+            strategy: 현재 검색 전략
+            
+        Returns:
+            0-100 점수
+        """
+        if not scene_tags or not strategy:
+            return 50
+        
+        # 전략별 기대 태그
+        expected_tags = {
+            "human": ["silhouette", "shadow", "back", "hooded", "praying", "hands", "kneeling"],
+            "nature_bright": ["sunrise", "sunset", "golden", "light", "rays", "mountain", "hope"],
+            "nature_calm": ["lake", "water", "calm", "peaceful", "forest", "serene", "ocean"],
+            "symbolic": ["hands", "prayer", "bible", "cross", "candle", "worship", "church"]
+        }
+        
+        if strategy not in expected_tags:
+            return 50
+        
+        # 겹치는 태그 개수로 점수 계산
+        matched = sum(1 for tag in scene_tags if any(exp in tag.lower() for exp in expected_tags[strategy]))
+        score = min(100, 30 + matched * 20)  # 기본 30점 + 태그당 20점
+        
+        return score
+
 
     def _calculate_quality_score(self, video: PexelsVideo, mood: MoodData) -> int:
         """

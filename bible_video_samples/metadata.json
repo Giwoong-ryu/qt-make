@@ -1,0 +1,255 @@
+{
+    "version": "1.0",
+    "description": "로컬 큐레이션 영상 메타데이터 (v1.5)",
+    "last_updated": "2026-01-22",
+    "videos": [
+        {
+            "id": "local_001",
+            "filename": "1.mp4",
+            "scene_tags": [
+                "desert",
+                "wilderness",
+                "walking",
+                "silhouette"
+            ],
+            "mood_tags": [
+                "contemplative",
+                "solemn"
+            ],
+            "people_level": "silhouette",
+            "modernness_level": 0,
+            "biblical_level": 3,
+            "best_for": [
+                "광야",
+                "회개",
+                "고통",
+                "외로움"
+            ],
+            "avoid_for": [
+                "기쁨",
+                "축복",
+                "감사"
+            ]
+        },
+        {
+            "id": "local_002",
+            "filename": "2.mp4",
+            "scene_tags": [
+                "sunrise",
+                "mountain",
+                "golden",
+                "rays"
+            ],
+            "mood_tags": [
+                "hopeful",
+                "peaceful"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 2,
+            "best_for": [
+                "희망",
+                "축복",
+                "새벽",
+                "부활"
+            ],
+            "avoid_for": [
+                "고통",
+                "회개"
+            ]
+        },
+        {
+            "id": "local_003",
+            "filename": "3.mp4",
+            "scene_tags": [
+                "ocean",
+                "waves",
+                "calm",
+                "horizon"
+            ],
+            "mood_tags": [
+                "peaceful",
+                "serene"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 2,
+            "best_for": [
+                "평안",
+                "은혜",
+                "묵상"
+            ],
+            "avoid_for": [
+                "긴급",
+                "회개"
+            ]
+        },
+        {
+            "id": "local_004",
+            "filename": "4.mp4",
+            "scene_tags": [
+                "praying",
+                "hands",
+                "closeup",
+                "candlelight"
+            ],
+            "mood_tags": [
+                "reverent",
+                "contemplative"
+            ],
+            "people_level": "hands_only",
+            "modernness_level": 1,
+            "biblical_level": 3,
+            "best_for": [
+                "기도",
+                "간구",
+                "회개",
+                "감사"
+            ],
+            "avoid_for": []
+        },
+        {
+            "id": "local_005",
+            "filename": "5.mp4",
+            "scene_tags": [
+                "cross",
+                "silhouette",
+                "sunset"
+            ],
+            "mood_tags": [
+                "solemn",
+                "hopeful"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 3,
+            "best_for": [
+                "십자가",
+                "구원",
+                "사랑",
+                "희생"
+            ],
+            "avoid_for": []
+        },
+        {
+            "id": "local_006",
+            "filename": "6.mp4",
+            "scene_tags": [
+                "forest",
+                "trees",
+                "fog",
+                "morning"
+            ],
+            "mood_tags": [
+                "peaceful",
+                "mysterious"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 2,
+            "best_for": [
+                "묵상",
+                "평안",
+                "자연"
+            ],
+            "avoid_for": [
+                "도시",
+                "현대"
+            ]
+        },
+        {
+            "id": "local_007",
+            "filename": "7.mp4",
+            "scene_tags": [
+                "lake",
+                "reflection",
+                "mountains",
+                "calm"
+            ],
+            "mood_tags": [
+                "serene",
+                "tranquil"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 2,
+            "best_for": [
+                "평안",
+                "은혜",
+                "묵상"
+            ],
+            "avoid_for": []
+        },
+        {
+            "id": "local_008",
+            "filename": "8.mp4",
+            "scene_tags": [
+                "back_view",
+                "walking",
+                "path",
+                "journey"
+            ],
+            "mood_tags": [
+                "contemplative",
+                "purposeful"
+            ],
+            "people_level": "silhouette",
+            "modernness_level": 1,
+            "biblical_level": 2,
+            "best_for": [
+                "순종",
+                "광야",
+                "여정",
+                "믿음"
+            ],
+            "avoid_for": []
+        },
+        {
+            "id": "local_009",
+            "filename": "9.mp4",
+            "scene_tags": [
+                "bible",
+                "open",
+                "light",
+                "pages"
+            ],
+            "mood_tags": [
+                "reverent",
+                "peaceful"
+            ],
+            "people_level": "none",
+            "modernness_level": 1,
+            "biblical_level": 3,
+            "best_for": [
+                "말씀",
+                "묵상",
+                "지혜"
+            ],
+            "avoid_for": []
+        },
+        {
+            "id": "local_010",
+            "filename": "10.mp4",
+            "scene_tags": [
+                "clouds",
+                "sky",
+                "moving",
+                "timelapse"
+            ],
+            "mood_tags": [
+                "dynamic",
+                "hopeful"
+            ],
+            "people_level": "none",
+            "modernness_level": 0,
+            "biblical_level": 2,
+            "best_for": [
+                "하늘",
+                "하나님",
+                "창조"
+            ],
+            "avoid_for": []
+        }
+    ],
+    "_comment": "나머지 영상들은 실제 내용 확인 후 태깅 필요"
+}
