@@ -30,5 +30,5 @@ RUN mkdir -p /usr/share/fonts/truetype/custom && \
 # 포트 노출
 EXPOSE 8000
 
-# Uvicorn 실행
+# 기본 CMD (Railway에서 서비스별로 오버라이드)
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
