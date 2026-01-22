@@ -460,10 +460,10 @@ class WhisperService:
             
             # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
             # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
-            # Soft Break 조건: 전체 길이의 50% 이상 채웠고, 조사나 연결어미로 끝날 때 (0.6 -> 0.5로 완화)
+            # Soft Break 조건: 전체 길이의 40% 이상 채웠고, 조사나 연결어미로 끝날 때 (0.5 -> 0.4로 완화)
             # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
             is_soft_break = (
-                len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.5) and
+                len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.4) and
                 self._is_soft_break_word(word.strip())
             )
 
