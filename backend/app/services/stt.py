@@ -460,11 +460,11 @@ class WhisperService:
             
             # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
             # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
-            # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
+            # Soft Break 조건: 전체 길이의 50% 이상 채웠고, 조사나 연결어미로 끝날 때 (0.6 -> 0.5로 완화)
             # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
             is_soft_break = (
-                len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.6) and
-                self._is_soft_break_word(word)
+                len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.5) and
+                self._is_soft_break_word(word.strip())
             )
 
             should_break = (
@@ -520,6 +520,9 @@ class WhisperService:
         """
         단어가 조사나 연결어미로 끝나서, 여기서 끊어도 자연스러운지 확인
         """
+        # 문장부호 제거 (예: "말씀으로," -> "말씀으로")
+        word = word.strip().rstrip('.!,?')
+
         # 1. 조사 체크
         for particle in self.KOREAN_PARTICLES:
             if word.endswith(particle):
