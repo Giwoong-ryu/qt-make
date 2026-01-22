@@ -228,6 +228,7 @@ async def upload_videos(
     generation_mode: str | None = Form(default="natural"),
     subtitle_length: str | None = Form(default="short"),
     generate_edit_pack: str | None = Form(default=None),
+    video_tone: str | None = Form(default="bright"),  # v2.2: 영상 톤 ("bright" / "dark")
     authorization: str | None = Header(default=None)
 ):
     """
@@ -381,7 +382,12 @@ async def upload_videos(
     valid_subtitle_length = subtitle_length if subtitle_length in ("short", "long") else "short"
 
     # generate_edit_pack 파싱 (문자열 → bool)
+    logger.info(f"[DEBUG] generate_edit_pack raw value: {repr(generate_edit_pack)}")
     should_generate_edit_pack = generate_edit_pack and generate_edit_pack.lower() == "true"
+    logger.info(f"[DEBUG] should_generate_edit_pack final value: {should_generate_edit_pack}")
+
+    # video_tone 검증 (bright 또는 dark만 허용)
+    valid_video_tone = video_tone if video_tone in ("bright", "dark") else "bright"
 
     # 배치 처리 또는 단일 처리
     if len(files) == 1:
@@ -396,7 +402,8 @@ async def upload_videos(
             parsed_bgm_volume, # BGM 볼륨
             generation_mode,  # 생성 방식
             valid_subtitle_length,  # 자막 길이
-            should_generate_edit_pack  # Edit Pack 생성 여부
+            should_generate_edit_pack,  # Edit Pack 생성 여부
+            valid_video_tone  # v2.2: 영상 톤
         )
     else:
         # 다중 파일: 배치 처리
@@ -409,7 +416,8 @@ async def upload_videos(
             parsed_bgm_volume, # BGM 볼륨
             generation_mode,  # 생성 방식
             valid_subtitle_length,  # 자막 길이
-            should_generate_edit_pack  # Edit Pack 생성 여부
+            should_generate_edit_pack,  # Edit Pack 생성 여부
+            valid_video_tone  # v2.2: 영상 톤
         )
 
     return {

@@ -70,8 +70,14 @@ class VideoClipSelector:
     MIDDLE_FALLBACK_MIN = 15.0  # 대안: 15~20초 (2번 반복)
     MIDDLE_FALLBACK_MAX = 20.0
 
-    def __init__(self):
-        self.video_search = PexelsVideoSearch()
+    def __init__(self, video_tone: str = "bright"):
+        """
+        초기화
+
+        Args:
+            video_tone: 영상 톤 ("bright" 기본 / "dark" 묵상용)
+        """
+        self.video_search = PexelsVideoSearch(video_tone=video_tone)
 
     def select_clips(
         self,

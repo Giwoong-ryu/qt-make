@@ -149,6 +149,7 @@ class PexelsVideoSearch:
     # v1.6: timelapse/hyperlapse 필터링 추가 (2026-01-23) - 자연경관 모드에서 빠른 영상 제외
     # v1.8: 비기독교 종교 콘텐츠 필터링 추가 (2026-01-23) - 코란/이슬람/힌두/불교 차단
     # v2.0: 가톨릭 필터 완화 (2026-01-23) - 성호 긋기만 차단, 나머지 카톨릭 이미지는 허용
+    # v2.3: 꽃 클로즈업 필터링 추가 (2026-01-23) - QT 묵상과 무관한 장식적 꽃 영상 차단
     GLOBAL_NEGATIVE = [
         "logo", "text", "watermark", "brand", "smartphone", "laptop",
         "timelapse", "time-lapse", "time lapse", "hyperlapse", "fast motion",
@@ -157,19 +158,29 @@ class PexelsVideoSearch:
         "quran", "koran", "mosque", "islam", "muslim", "mecca", "kaaba", "ramadan",
         "buddha", "buddhist", "buddhism", "temple", "pagoda", "monk",
         "hindu", "hinduism", "shiva", "vishnu", "ganesha", "krishna", "om symbol",
-        "jewish", "judaism", "menorah", "torah", "synagogue", "rabbi"
+        "jewish", "judaism", "menorah", "torah", "synagogue", "rabbi",
+        # Flower/plant close-ups (distracting, irrelevant to QT)
+        "flower close", "flower macro", "rose close", "tulip", "orchid",
+        "lily close", "petal", "bouquet", "floral arrangement", "garden flower"
     ]
 
-    def __init__(self, pexels_api_key: Optional[str] = None, gemini_api_key: Optional[str] = None):
+    def __init__(
+        self,
+        pexels_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
+        video_tone: str = "bright"
+    ):
         """
         초기화
 
         Args:
             pexels_api_key: Pexels API 키
             gemini_api_key: Gemini API 키
+            video_tone: 영상 톤 ("bright" 기본 / "dark" 묵상용 어두운 톤)
         """
         self.pexels_key = pexels_api_key or settings.PEXELS_API_KEY
         self.gemini_key = gemini_api_key or settings.GEMINI_API_KEY
+        self.video_tone = video_tone  # v2.2: 영상 톤 옵션
 
         if not self.pexels_key:
             raise ValueError("PEXELS_API_KEY is required")
@@ -182,6 +193,8 @@ class PexelsVideoSearch:
         self.vision_model = genai.GenerativeModel(
             'gemini-2.5-flash'
         )
+
+        logger.info(f"PexelsVideoSearch initialized (video_tone={video_tone})")
 
     def search_by_mood(
         self,
@@ -335,29 +348,40 @@ class PexelsVideoSearch:
         Returns:
             톤 조정된 쿼리
         """
-        # QT 묵상 영상 톤 조정: 어두움 70% / 밝음 30%
-        # 밝은 키워드 제거 및 어두운 톤 키워드 추가
-        dark_tone_keywords = [
-            "dark", "moody", "shadowy", "dim light", "soft light",
-            "contemplative", "solemn", "reverent", "subdued"
-        ]
-
-        # 밝은 키워드 탐지 (제거 대상)
-        bright_keywords = [
-            "bright", "sunny", "golden hour", "sunrise", "sunset",
-            "warm light", "cheerful", "vibrant"
-        ]
-
-        # 쿼리에서 밝은 키워드 제거
-        modified_query = query
-        for bright_word in bright_keywords:
-            modified_query = modified_query.replace(bright_word, "")
-
-        # 어두운 톤 키워드 추가 (70% 확률)
+        # QT 묵상 영상 톤 조정 (v2.2 - video_tone 옵션 지원)
+        # video_tone: "bright" (기본) / "dark" (어두운 묵상 톤)
         import random
-        if random.random() < 0.7:  # 70% 확률로 어두운 톤 강제
+
+        # 톤 설정은 인스턴스 변수에서 가져옴 (기본: bright)
+        video_tone = getattr(self, 'video_tone', 'bright')
+
+        dark_tone_keywords = [
+            "dark", "moody", "shadowy", "dim light", "low light",
+            "contemplative", "solemn", "reverent", "subdued",
+            "cinematic dark", "shadow", "dusk", "twilight"
+        ]
+
+        bright_tone_keywords = [
+            "golden hour", "warm light", "soft light", "natural light",
+            "peaceful", "serene", "gentle light"
+        ]
+
+        modified_query = query
+
+        if video_tone == "dark":
+            # 어두운 톤: 밝은 키워드 제거 + 어두운 키워드 추가
+            bright_keywords_to_remove = [
+                "bright", "sunny", "daylight", "midday",
+                "summer", "beach", "tropical", "colorful", "vivid"
+            ]
+            for bright_word in bright_keywords_to_remove:
+                modified_query = modified_query.replace(bright_word, "")
             dark_keyword = random.choice(dark_tone_keywords)
             modified_query = f"{modified_query} {dark_keyword}"
+        else:
+            # 밝은 톤 (기본): 기존 동작 유지
+            bright_keyword = random.choice(bright_tone_keywords)
+            modified_query = f"{modified_query} {bright_keyword}"
 
         # v1.6: timelapse 방지 - "slow" 또는 "real time" 키워드 추가
         # Pexels에서 자연 영상 검색 시 timelapse가 상위 노출되는 문제 해결
@@ -365,7 +389,7 @@ class PexelsVideoSearch:
         anti_timelapse = random.choice(anti_timelapse_keywords)
         modified_query = f"{modified_query} {anti_timelapse}"
 
-        logger.info(f"[PexelsSearch] Modified query (dark tone + anti-timelapse): {modified_query}")
+        logger.info(f"[PexelsSearch] Modified query (tone={video_tone}, anti-timelapse): {modified_query}")
         return modified_query
 
     def _search_with_verification(
@@ -712,6 +736,25 @@ REJECT if ANY of the following is present:
    - Alcohol, smoking, drugs
    - Nightclub, bar, party scenes
 
+6.5. FLOWER/PLANT CLOSE-UPS (REJECT):
+   ⚠️ These are visually distracting and irrelevant to QT meditation.
+
+   REJECT:
+   - Flower close-ups (any type of flower filling most of frame)
+   - Macro shots of petals, stamens, pistils
+   - Decorative/ornamental flowers (roses, tulips, orchids, lilies)
+   - Garden flowers with water droplets
+   - Tropical/exotic flowers (hibiscus, plumeria, bird of paradise)
+   - Potted plants, houseplants close-ups
+   - Flower arrangements, bouquets
+
+   ACCEPT (Biblical/symbolic nature):
+   - Wide landscape with wildflowers in field (small in frame)
+   - Olive trees, fig trees, grape vines (Biblical plants)
+   - Wheat/grain fields (Biblical harvest imagery)
+   - Forest/mountain scenes with distant vegetation
+   - Desert plants, wilderness landscapes
+
 7. CULT-LIKE RELIGIOUS IMAGERY (REJECT FOR SYMBOLIC MODE):
    - Cross with unnatural glowing/radiating light effects (lens flare ok, neon glow not ok)
    - Overly dramatic divine light beams (theatrical/CGI style)
@@ -830,6 +873,14 @@ CULT-LIKE IMAGERY (REJECT):
 - Purple/green/red glowing religious symbols ❌
 - Sci-fi style religious imagery ❌
 - Over-processed HDR religious photos ❌
+
+FLOWER/PLANT CLOSE-UPS (REJECT):
+- Flower close-ups (any flower filling most of frame) ❌
+- Macro shots of petals, water droplets on flowers ❌
+- Decorative flowers (roses, tulips, orchids, lilies) ❌
+- Garden/tropical/exotic flowers ❌
+- Potted plants, houseplants close-ups ❌
+(OK: Wide landscape with distant wildflowers, Biblical plants like olive/fig/wheat)
 
 SIGN OF THE CROSS (성호 긋기) - REJECT:
 - Person making sign of the cross (touching forehead, chest, shoulders) ❌
@@ -1092,6 +1143,14 @@ Output ONLY the JSON object:"""
         return min(score, 100)
 
 
-def get_video_search() -> PexelsVideoSearch:
-    """PexelsVideoSearch 싱글톤"""
-    return PexelsVideoSearch()
+def get_video_search(video_tone: str = "bright") -> PexelsVideoSearch:
+    """
+    PexelsVideoSearch 인스턴스 생성
+
+    Args:
+        video_tone: 영상 톤 ("bright" 기본 / "dark" 묵상용 어두운 톤)
+
+    Returns:
+        PexelsVideoSearch 인스턴스
+    """
+    return PexelsVideoSearch(video_tone=video_tone)

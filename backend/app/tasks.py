@@ -85,7 +85,8 @@ def process_video_task(
     bgm_volume: float = 0.12,
     generation_mode: str = "natural",  # "safe", "standard", "symbolic" (legacy: "default", "natural")
     subtitle_length: str = "short",  # "short"(8자) or "long"(16자/Netflix)
-    generate_edit_pack: bool = False  # True = CapCut Edit Pack (ZIP) 생성
+    generate_edit_pack: bool = False,  # True = CapCut Edit Pack (ZIP) 생성
+    video_tone: str = "bright"  # v2.2: 영상 톤 ("bright" 기본 / "dark" 묵상용)
 ):
     """
     QT 영상 생성 메인 파이프라인
@@ -114,7 +115,15 @@ def process_video_task(
 
     try:
         # ========================================
-        # Step 0: R2 URL인 경우 로컬로 다운로드
+        # Step 0-A: DB status를 processing으로 업데이트 (페이지 새로고침 시 상태 유지용)
+        # ========================================
+        supabase.table("videos").update({
+            "status": "processing"
+        }).eq("id", video_id).execute()
+        logger.info(f"[Task] Video status updated to processing: {video_id}")
+
+        # ========================================
+        # Step 0-B: R2 URL인 경우 로컬로 다운로드
         # ========================================
         if audio_file_path.startswith("http"):
             self.update_state(
@@ -393,7 +402,7 @@ def process_video_task(
             )
 
             from app.services.background_video_search import PexelsVideoSearch
-            pexels_search = PexelsVideoSearch()
+            pexels_search = PexelsVideoSearch(video_tone=video_tone)
 
             # 전역 클립 이력 서비스
             clip_history = get_clip_history_service()
@@ -405,11 +414,24 @@ def process_video_task(
             subtitle_clips = []  # 자막 기반 클립 리스트
             used_video_ids = recently_used_global.copy()  # 전역 중복 + 현재 영상 중복 방지
 
+            # 대체 쿼리 목록 (중복 발생 시 사용)
+            alternative_queries = [
+                "peaceful mountain landscape nature cinematic",
+                "calm ocean waves sunset serene",
+                "forest trees morning light peaceful",
+                "clouds sky sunset golden hour",
+                "river water flowing nature calm",
+                "desert wilderness ancient landscape",
+                "rain drops window contemplation",
+                "sunrise horizon hope new day"
+            ]
+            alt_query_idx = 0
+
             for idx, (cut, desc) in enumerate(zip(cuts, visual_descriptions)):
                 videos = pexels_search.search_by_visual_description(
                     visual_query=desc.visual_query,
                     duration_needed=int(cut.duration) + 1,
-                    max_results=5,  # 3→5로 증가 (중복 제외 후 선택지 확보)
+                    max_results=8,  # 5→8로 증가 (중복 제외 후 선택지 확보)
                     exclude_ids=used_video_ids  # Pexels 검색 단계에서 이미 사용된 영상 제외
                 )
 
@@ -422,12 +444,36 @@ def process_video_task(
                             used_video_ids.add(video.id)
                             break
 
-                    # 모든 영상이 이미 사용됨 → 첫 번째 결과 재사용 (로그 출력)
+                    # 모든 영상이 이미 사용됨 → 대체 쿼리로 재검색
                     if selected_video is None:
-                        selected_video = videos[0]
                         logger.warning(
-                            f"  Cut {cut.index+1}: All videos already used, reusing Video ID {videos[0].id}"
+                            f"  Cut {cut.index+1}: All videos from main query used, trying alternative query"
                         )
+                        # 대체 쿼리로 다시 검색
+                        alt_query = alternative_queries[alt_query_idx % len(alternative_queries)]
+                        alt_query_idx += 1
+
+                        alt_videos = pexels_search.search_by_visual_description(
+                            visual_query=alt_query,
+                            duration_needed=int(cut.duration) + 1,
+                            max_results=8,
+                            exclude_ids=used_video_ids
+                        )
+
+                        if alt_videos:
+                            for video in alt_videos:
+                                if video.id not in used_video_ids:
+                                    selected_video = video
+                                    used_video_ids.add(video.id)
+                                    logger.info(f"  Cut {cut.index+1}: Found alternative video ID {video.id}")
+                                    break
+
+                        # 대체 쿼리도 모두 중복 → 최후의 수단: 첫 번째 재사용
+                        if selected_video is None:
+                            selected_video = videos[0]
+                            logger.warning(
+                                f"  Cut {cut.index+1}: No unique videos found, reusing ID {videos[0].id}"
+                            )
 
                     subtitle_clips.append({
                         'cut': cut,
@@ -444,7 +490,7 @@ def process_video_task(
                     fallback = pexels_search.search_by_visual_description(
                         visual_query="peaceful nature landscape calm serene cinematic",
                         duration_needed=int(cut.duration) + 1,
-                        max_results=5,  # 3→5로 증가
+                        max_results=8,  # 5→8로 증가
                         exclude_ids=used_video_ids  # 이미 사용된 영상 제외
                     )
                     if fallback:
@@ -826,6 +872,7 @@ def process_video_task(
         # Step 3.5: Edit Pack 생성 (옵션)
         # ========================================
         edit_pack_url = None
+        logger.info(f"[DEBUG Edit Pack] generate_edit_pack={generate_edit_pack}, USE_SUBTITLE_BASED_CLIPS={USE_SUBTITLE_BASED_CLIPS}")
         if generate_edit_pack and USE_SUBTITLE_BASED_CLIPS:
             try:
                 self.update_state(
@@ -924,7 +971,7 @@ def process_video_task(
             meta={"progress": 95, "step": "메타데이터 저장 중..."}
         )
 
-        # videos 테이블 업데이트
+        # videos 테이블 업데이트 (필수 필드)
         update_data = {
             "video_file_path": video_url,
             "srt_file_path": srt_url,
@@ -932,19 +979,24 @@ def process_video_task(
             "duration": audio_duration,
             "status": "completed",
             "clips_used": used_clip_ids,
-            "clips_metadata": clips_metadata,  # 🆕 Pexels URL 메타데이터 (재생성 시 사용)
+            "clips_metadata": clips_metadata,  # Pexels URL 메타데이터 (재생성 시 사용)
             "completed_at": datetime.utcnow().isoformat()
         }
 
-        # ✅ 베이스 영상 URL 저장 (재생성 시 클립 재처리 스킵)
+        # 베이스 영상 URL 저장 (재생성 시 클립 재처리 스킵)
         if base_video_url:
             update_data["base_video_path"] = base_video_url
 
-        # ✅ Edit Pack URL 저장 (CapCut 편집용)
-        if edit_pack_url:
-            update_data["edit_pack_url"] = edit_pack_url
-
         supabase.table("videos").update(update_data).eq("id", video_id).execute()
+
+        # Edit Pack URL 저장 (옵션 - 컬럼이 없어도 에러 무시)
+        if edit_pack_url:
+            try:
+                supabase.table("videos").update(
+                    {"edit_pack_url": edit_pack_url}
+                ).eq("id", video_id).execute()
+            except Exception as e:
+                logger.warning(f"edit_pack_url 저장 실패 (컬럼 없음?): {e}")
 
         # 클립 사용 횟수 증가
         for cid in used_clip_ids:
@@ -1029,7 +1081,9 @@ def batch_process_videos_task(
     bgm_id: str | None = None,
     bgm_volume: float = 0.12,
     generation_mode: str = "natural",
-    subtitle_length: str = "short"
+    subtitle_length: str = "short",
+    generate_edit_pack: bool = False,
+    video_tone: str = "bright"  # v2.2: 영상 톤
 ):
     """
     주간 영상 일괄 처리 (7개 파일)
@@ -1041,6 +1095,8 @@ def batch_process_videos_task(
         clip_ids: 템플릿에서 선택한 클립 ID 리스트
         bgm_id: BGM ID
         bgm_volume: BGM 볼륨
+        generate_edit_pack: Edit Pack 생성 여부
+        video_tone: 영상 톤 ("bright" / "dark")
 
     Returns:
         list: 각 영상의 처리 결과
@@ -1072,7 +1128,11 @@ def batch_process_videos_task(
 
             # 개별 영상 처리 (동기 호출)
             result = process_video_task.apply(
-                args=[audio_path, church_id, video_id, pack_id, clip_ids, bgm_id, bgm_volume]
+                args=[
+                    audio_path, church_id, video_id, pack_id,
+                    clip_ids, bgm_id, bgm_volume, generation_mode,
+                    subtitle_length, generate_edit_pack, video_tone
+                ]
             ).get(timeout=600)  # 10분 타임아웃
 
             results.append({
