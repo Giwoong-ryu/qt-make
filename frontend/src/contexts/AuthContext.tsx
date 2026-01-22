@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setIsLoading(false);
     } else {
-      throw new Error("토큰을 받지 못했습니다.");
+      throw new Error(data.error || "로그인에 실패했습니다.");
     }
   }, []);
 
@@ -241,8 +241,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(data.access_token);
       setUser(data.user);
       setIsLoading(false);
+    } else if (data.success) {
+      // 이메일 인증 대기 상태 - 토큰 없음
+      throw new Error("이메일 인증이 필요합니다. 메일함을 확인해주세요.");
     } else {
-      throw new Error("토큰을 받지 못했습니다.");
+      throw new Error(data.error || "회원가입에 실패했습니다.");
     }
   }, []);
 
