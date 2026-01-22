@@ -40,10 +40,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-import { API_URL } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
 
 console.log("[AuthContext] NODE_ENV:", process.env.NODE_ENV);
-console.log("[AuthContext] API_URL:", API_URL);
+console.log("[AuthContext] API_URL:", getApiUrl());
 
 // 토큰 저장/로드 (다른 컴포넌트에서도 사용 가능하도록 export)
 export const TOKEN_KEY = "qt_access_token";
@@ -73,7 +73,7 @@ async function authFetch(endpoint: string, options: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${getApiUrl()}${endpoint}`, {
     ...options,
     headers,
   });
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       console.log("Calling /api/auth/me with token:", token.substring(0, 20) + "...");
-      const response = await fetch(`${API_URL}/api/auth/me`, {
+      const response = await fetch(`${getApiUrl()}/api/auth/me`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -138,10 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.church_id) {
         try {
           const [subscriptionRes, usageRes] = await Promise.all([
-            fetch(`${API_URL}/api/subscription/status?church_id=${data.church_id}`, {
+            fetch(`${getApiUrl()}/api/subscription/status?church_id=${data.church_id}`, {
               headers: { "Authorization": `Bearer ${token}` },
             }),
-            fetch(`${API_URL}/api/subscription/usage?church_id=${data.church_id}`, {
+            fetch(`${getApiUrl()}/api/subscription/usage?church_id=${data.church_id}`, {
               headers: { "Authorization": `Bearer ${token}` },
             }),
           ]);
