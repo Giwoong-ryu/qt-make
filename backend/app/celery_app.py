@@ -8,11 +8,10 @@ from app.config import get_settings
 settings = get_settings()
 
 # Celery 앱 생성
-redis_url = settings.get_redis_url
 celery_app = Celery(
     "qt_video",
-    broker=redis_url,
-    backend=redis_url,
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
     include=["app.tasks"]
 )
 

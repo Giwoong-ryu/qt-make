@@ -85,18 +85,13 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
 
-    # Redis (Railway/Upstash 호환)
-    # REDIS_URL이 환경변수로 주어지면 그걸 사용, 없으면 HOST/PORT 조합
-    REDIS_URL: str = ""  # Railway는 이 값을 통째로 제공함
+    # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
     @property
-    def get_redis_url(self) -> str:
-        """Railway/Upstash는 REDIS_URL을 직접 제공, 로컬은 조합"""
-        if self.REDIS_URL:
-            return self.REDIS_URL
+    def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
