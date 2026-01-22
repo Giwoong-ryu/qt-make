@@ -58,6 +58,7 @@ class WhisperService:
         '까요', '을까요', 'ㄹ까요', '신가요',
         '게요', '을게요', 'ㄹ게요',
         '죠', '시죠', '하죠', '되죠',
+        '어요', '아요', '여요',  # 일반적인 해요체 추가 (계셨어요 등 대응)
         # 존댓말/청유/명령
         '세요', '으세요', '시지요', '시지요',
         '옵소서', '주소서',
@@ -459,6 +460,8 @@ class WhisperService:
             
             # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
             # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
+            # Soft Break 조건: 전체 길이의 60% 이상 채웠고, 조사나 연결어미로 끝날 때
+            # 예: "우리 모든 꽃동산 가족 하나님의 말씀으로" (약 20자) -> 조사 '으로'에서 끊기
             is_soft_break = (
                 len(new_text) > (self.MAX_CHARS_PER_SUBTITLE * 0.6) and
                 self._is_soft_break_word(word)
@@ -470,7 +473,7 @@ class WhisperService:
                 is_word_end or                                  # 문장 종결
                 is_soft_break                                   # 자연스러운 분기점
             )
-
+            
             if should_break:
                 # 문장 끝(종결어미)인 경우 OR Soft Break인 경우: 현재 단어 포함해서 저장
                 if is_word_end or is_soft_break:
