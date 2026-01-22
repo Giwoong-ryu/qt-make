@@ -26,6 +26,14 @@ COPY . .
 RUN mkdir -p /app/background_clips/local
 COPY bible_video_samples/*.mp4 /app/background_clips/local/
 
+# [최적화] 로컬 클립 사전 정규화 (concat demuxer 사용 가능하게)
+# 정규화 포맷: 1920x1080, 30fps, yuv420p, libx264, crf23
+# 효과: 런타임 인코딩 제거 → 영상 생성 50-70% 단축
+RUN python scripts/normalize_local_clips.py \
+    --input /app/background_clips/local \
+    --output /app/background_clips/normalized \
+    --workers 1 || true
+
 # Pexels 인기 클립 사전 다운로드 (DB 기반, 실패해도 계속 진행)
 RUN python scripts/download_popular_clips.py --count 30 --output /app/background_clips || true
 

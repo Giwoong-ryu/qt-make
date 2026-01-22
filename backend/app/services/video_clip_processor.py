@@ -257,8 +257,20 @@ class VideoClipProcessor:
             다운로드된 파일 경로
         """
         import shutil
+        import random
 
         cache_dir = Path("/app/background_clips")
+        normalized_dir = cache_dir / "normalized"
+
+        # Step 0: [최적화] 정규화된 클립 우선 사용 (concat demuxer 가능)
+        # 정규화된 클립은 동일 코덱/해상도/FPS → 무손실 연결 가능
+        if normalized_dir.exists():
+            normalized_clips = list(normalized_dir.glob("norm_*.mp4"))
+            if normalized_clips:
+                selected_norm = random.choice(normalized_clips)
+                logger.info(f"[NORMALIZED] Using pre-encoded clip: {selected_norm.name} (fast concat enabled)")
+                shutil.copy(selected_norm, output_path)
+                return output_path
 
         # Step 1: Pexels 캐시 확인 (Docker 빌드 시 사전 다운로드된 클립)
         if video_id:
@@ -273,7 +285,6 @@ class VideoClipProcessor:
         if local_clips_dir.exists():
             local_clips = list(local_clips_dir.glob("*.mp4"))
             if local_clips:
-                import random
                 selected_clip = random.choice(local_clips)
                 logger.info(f"[LOCAL CLIP] Using local clip: {selected_clip.name}")
                 shutil.copy(selected_clip, output_path)
