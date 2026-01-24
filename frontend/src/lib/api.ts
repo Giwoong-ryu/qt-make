@@ -87,9 +87,7 @@ export async function createVideo(
   formData.append("church_id", churchId);
 
   const response = await api.post("/api/videos/upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+    // Content-Type을 직접 설정하지 않음 - Axios가 FormData에 맞게 boundary 포함하여 자동 설정
     timeout: 60000, // 업로드는 60초
   });
 

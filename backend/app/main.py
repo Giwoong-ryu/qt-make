@@ -5,6 +5,10 @@ import logging
 import os
 import tempfile
 from uuid import uuid4
+from datetime import datetime, timezone, timedelta
+
+# 한국 시간대 (UTC+9)
+KST = timezone(timedelta(hours=9))
 
 from celery.result import AsyncResult
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, Request, Header
@@ -35,19 +39,54 @@ from supabase import create_client
 # Settings
 settings = get_settings()
 
-# 로깅 설정 (환경변수 기반)
+# 로깅 설정 (환경변수 기반) - 한국시간 적용
 log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
-logging.basicConfig(
-    level=log_level,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-    ]
-)
+
+class KSTFormatter(logging.Formatter):
+    """한국시간(KST)으로 로그 출력하는 Formatter"""
+    def formatTime(self, record, datefmt=None):
+        # UTC에서 KST로 변환 (+9시간)
+        from datetime import datetime, timezone, timedelta
+        kst = timezone(timedelta(hours=9))
+        ct = datetime.fromtimestamp(record.created, tz=kst)
+        if datefmt:
+            return ct.strftime(datefmt)
+        return ct.strftime("%Y-%m-%d %H:%M:%S")
+
+# KST Formatter 적용
+handler = logging.StreamHandler()
+handler.setFormatter(KSTFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.basicConfig(level=log_level, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 # Supabase 클라이언트
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+
+def convert_to_kst(iso_string: str | None) -> str | None:
+    """UTC ISO 문자열을 한국시간 문자열로 변환"""
+    if not iso_string:
+        return None
+    try:
+        # ISO 형식 파싱 (2026-01-24T10:47:55.116899+00:00)
+        dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
+        # 한국시간으로 변환
+        dt_kst = dt.astimezone(KST)
+        # 읽기 쉬운 형식으로 반환
+        return dt_kst.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return iso_string
+
+
+def convert_video_times_to_kst(video: dict) -> dict:
+    """영상 데이터의 시간 필드를 한국시간으로 변환"""
+    video = video.copy()
+    if "created_at" in video:
+        video["created_at"] = convert_to_kst(video["created_at"])
+    if "completed_at" in video:
+        video["completed_at"] = convert_to_kst(video["completed_at"])
+    return video
+
 
 # R2 스토리지 클라이언트
 r2 = R2Storage()
@@ -147,7 +186,7 @@ async def root():
 
 
 @app.get("/health")
-async def health():
+async def health(request: Request):
     """상세 헬스 체크 (외부 서비스 연결 검증)"""
     checks = {}
     all_ok = True
@@ -489,7 +528,8 @@ async def get_video(video_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="영상을 찾을 수 없습니다.")
 
-    return result.data[0]
+    # 한국시간으로 변환
+    return convert_video_times_to_kst(result.data[0])
 
 
 @app.get("/api/videos")
@@ -517,9 +557,12 @@ async def list_videos(
         .range(offset, offset + limit - 1) \
         .execute()
 
+    # 한국시간으로 변환
+    videos_kst = [convert_video_times_to_kst(v) for v in result.data]
+
     return {
-        "videos": result.data,
-        "count": len(result.data),
+        "videos": videos_kst,
+        "count": len(videos_kst),
         "offset": offset,
         "limit": limit
     }
@@ -1012,7 +1055,8 @@ async def get_video_detail(video_id: str):
         except:
             video["clips_used"] = []
 
-    return video
+    # 한국시간으로 변환
+    return convert_video_times_to_kst(video)
 
 
 class VideoUpdateRequest(BaseModel):
